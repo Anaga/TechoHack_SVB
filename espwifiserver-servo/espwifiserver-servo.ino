@@ -7,12 +7,13 @@
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
+#include <BH1750.h>
 
 MDNSResponder mdns;
 
 // Replace with your network credentials
-const char* ssid = "YouBetterRun";
-const char* password = "kalamaja";
+const char* ssid = "Mektory";
+const char* password = "";
 
 ESP8266WebServer server(80);
 
