@@ -1,0 +1,3 @@
+http://blog.simtronyx.de/en/measurement-of-illuminance-with-a-bh1750fvi-breakout-board-gy-30-and-an-arduino-uno/
+http://www.instructables.com/id/BH1750-Digital-Light-Sensor/?ALLSTEPS
+https://lesson.iarduino.ru/page/podklyuchaem-bh1750-datchik-osveschennosti-gy-30-gy-302-k-arduino/
