@@ -9,15 +9,17 @@ BH1750FVI LightSensor1;
 BH1750FVI LightSensor2;
 Ticker LightSenseTicker;
 Ticker MasterLightRequestTicker;
+Ticker MasterSetpointTicker;
 boolean doLightSense = false;
 boolean doRequestLight = false;
+boolean doBroadcastSetpoint = false;
 
 // Light sense interval in seconds
 #define LIGHT_SENSE_INTERVAL 1.0
 
 // Light sense interval in seconds
 #define MASTER_REQEST_INTERVAL 5.0
-
+#define MASTER_SETPOINT_INTERVAL 1.0
 
 #define IM_MASTER 1
 
@@ -132,6 +134,10 @@ void triggerMasterLightRequest (void)
     doRequestLight = true;
 }
 
+void triggerBroadcastSetpoint (void)
+{
+    doBroadcastSetpoint = true;
+}
 
 uint16_t getAndPrintLight(void){    
      priv_lux1 = LightSensor1.GetLightIntensity();// Get Lux value from sensor1
@@ -471,20 +477,28 @@ void setup(void){
      LightSenseTicker.attach(LIGHT_SENSE_INTERVAL, triggerLightSense);
      
      MasterLightRequestTicker.attach(MASTER_REQEST_INTERVAL, triggerMasterLightRequest);
+     MasterSetpointTicker.attach(MASTER_SETPOINT_INTERVAL, triggerBroadcastSetpoint);
+
      // Make first measurment
      getAndPrintLight();
      Serial.println("Setup Complite ...");
 }
-void handl_master_logic(void){
+
+void handle_master_logic(void){
     if (doRequestLight){
-        send_light_reqest_to_all();
+        send_light_request_to_all();
         doRequestLight = false;
     }
 
+    if (doBroadcastSetpoint) {
+        send_setpoint_to_all();
+        doBroadcastSetpoint = false;
+    }
 
 
 }
-void send_light_reqest_to_all(void){
+
+void send_light_request_to_all(void){
     PDU pdu;
 
     pdu.transaction_id = 0x1234;
@@ -496,13 +510,37 @@ void send_light_reqest_to_all(void){
     pdu.data_len = 0;
 
     send_pdu (&pdu,true);
+
+    // Reset the timer in case this function is called directly
+    MasterLightRequestTicker.attach(MASTER_REQEST_INTERVAL, triggerMasterLightRequest);
+}
+
+void send_setpoint_to_all (void) {
+    uint8_t databuf[2];
+    PDU pdu;
+
+    databuf[0] = (priv_setpoint >> 8) & 0xFF;
+    databuf[1] = (priv_setpoint >> 0) & 0xFF;
+
+    pdu.transaction_id = 0x1234;
+    pdu.group_id = MY_GROUP_ID;
+    pdu.source = MY_DEVICE_ID;
+    pdu.dest = -1;
+    pdu.command = CMD_WRITE_SETPOINT;
+    pdu.data = databuf;
+    pdu.data_len = 2;
+
+    send_pdu (&pdu,true);
+
+    // Reset the timer in case this function is called directly
+    MasterSetpointTicker.attach(MASTER_SETPOINT_INTERVAL, triggerBroadcastSetpoint);
 }
 
 void loop(void){
      if (isWifiConnect){
          udp_manage();
          if (IM_MASTER){
-             handl_master_logic();
+             handle_master_logic();
          }
      }
      else {
