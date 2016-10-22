@@ -451,7 +451,7 @@ void loop(void){
         isWifiConnect = tryToConnect();
      }
      
-     getAndPrintLigth();
+     priv_current_pos = getAndPrintLigth();
      
      delay(1000);
 }
