@@ -4,6 +4,16 @@
 #include <WiFiUdp.h>
 #include "CRC_16.h"
 
+#include "Protocol.h"
+
+static uint16_t setpoint = 0;
+static uint16_t current_pos = 0;
+static uint16_t sensors_data[] = { 0xABCD, 0xCDEF };
+
+const uint8_t MY_GROUP_ID = 1;
+uint32_t MY_DEVICE_ID = 0;
+
+
 BH1750FVI LightSensor1;
 BH1750FVI LightSensor2;
 
@@ -56,57 +66,43 @@ uint16_t getAndPrintLigth(void){
      return (lux1+lux2)/2;
     }
 
-static void udp_print_packet (const uint8_t *buf, int len)
+
+void setpoint_set (uint16_t setpoint)
 {
-  char hex[5];
-  for (int i = 0; i < len; i++) {
-    snprintf (hex, sizeof (hex), "<%02X> ", buf[i]);
-    Serial.print(hex);
+  if (setpoint > 10000) {
+    setpoint = 10000;
   }
-  Serial.println("");
+
+  Serial.print ("New setpoint received: ");
+  Serial.println (setpoint);
 }
 
-static int udp_parse_packet (const uint8_t *buf, int len)
+uint16_t setpoint_get (void)
 {
-  uint16_t crc;
-
-  if (len < 6) {
-    Serial.println("ERR: UDP packet too small");
-    return -1;
-  }
-  crc = buf[len - 2] << 8 | buf[len - 1];
-  
-  if (crc != CRC16_Calc (buf, len - 2)) {
-    Serial.println("ERR: CRC mismatch");
-    return -1;   }
-
-  return 0;
+  return setpoint;
 }
 
-static void udp_manage (void)
+uint16_t current_pos_get (void)
 {
+  return current_pos;
+}
+
+
+static void udp_manage (void){
   // Buffer to hold incoming packet
-  static uint8_t packetBuffer[255];
+  static uint8_t packet[255];
   int packetSize;
 
   // If there's data available, read a packet
   packetSize = udp.parsePacket();
 
   if (packetSize) {
-
-    IPAddress remoteIp = udp.remoteIP();
-    int remotePort = udp.remotePort();
-    Serial.print(remoteIp);
-    Serial.print(":");
-    Serial.print(remotePort);
-    Serial.print(" - ");
-
     // read the packet into packetBuffer
-    int len = udp.read(packetBuffer, 255);
+    int len = udp.read(packet, 255);
     if (len >= 0) {
-      udp_print_packet (packetBuffer, len);
-      udp_parse_packet (packetBuffer, len);
-      packetBuffer[len] = 0;
+      Serial.print ("RX: ");
+      udp_print_packet (packet, len);
+      udp_parse_packet (packet, len);
     } else {
       Serial.println("ERR: UDP read failed");
     }
