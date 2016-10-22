@@ -1,22 +1,3 @@
-/*********
-  Rui Santos
-  Complete project details at http://randomnerdtutorials.com  
-
-
-    This is a simple code to test BH1750FVI Light senosr
-  communicate using I2C Protocol 
-  this library enable 2 slave device address
-  Main address  0x23 
-  secondary address 0x5C 
-  connect this sensor as following :
-  VCC >>> 3.3V
-  SDA >>> A4 
-  SCL >>> A5
-  addr >> A3
-  Gnd >>>Gnd
-
-  Written By : Mohannad Rawashdeh
-*********/
 
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
@@ -24,7 +5,6 @@
 #include <ESP8266mDNS.h>
 #include <Wire.h>
 #include <BH1750FVI.h>
-
 
 MDNSResponder mdns;
 
