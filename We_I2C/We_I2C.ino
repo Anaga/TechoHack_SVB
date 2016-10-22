@@ -61,7 +61,7 @@ void setup(void){
 
   myservo.attach(4);
 
-  LightSensor.SetAddress(Device_Address_H);//Address 0x5C
+  LightSensor.SetAddress(Device_Address_L);//Address 0x5C
   LightSensor.SetMode(Continuous_H_resolution_Mode);
   
   Serial.println("Setup LightSensor ...");
