@@ -8,13 +8,21 @@
 BH1750FVI LightSensor1;
 BH1750FVI LightSensor2;
 Ticker LightSenseTicker;
+Ticker MasterLightRequestTicker;
 boolean doLightSense = false;
+boolean doRequestLight = false;
 
 // Light sense interval in seconds
 #define LIGHT_SENSE_INTERVAL 1.0
 
+// Light sense interval in seconds
+#define MASTER_REQEST_INTERVAL 5.0
+
+
+#define IM_MASTER 1
+
 WiFiUDP udp;
-IPAddress broadcastIp(192, 168, 0, 255);
+IPAddress broadcastIp(255, 255, 255, 255);
 
 typedef struct
 {
@@ -118,6 +126,11 @@ void triggerLightSense (void)
     doLightSense = true;
 }
 
+void triggerMasterLightRequest (void)
+{
+    doRequestLight = true;
+}
+
 
 uint16_t getAndPrintLight(void){    
      priv_lux1 = LightSensor1.GetLightIntensity();// Get Lux value from sensor1
@@ -159,13 +172,13 @@ uint16_t current_pos_get (void)
 
 
 // ### UDP ##########################################
-static void udp_send_packet (const uint8_t *buf, int len);
+static void udp_send_packet (const uint8_t *buf, int len, boolean is_broadcast);
 static void udp_print_packet (const uint8_t *buf, int len);
 
 /**
   * @brief Send protocol packet
   */
-static void send_pdu (PDU *pdu)
+static void send_pdu (PDU *pdu, boolean is_broadcast)
 {
   uint8_t buf[255];
   uint8_t *bufptr = buf;
@@ -187,7 +200,9 @@ static void send_pdu (PDU *pdu)
   *bufptr++ = (pdu->dest >> 8) & 0xFF;
   *bufptr++ = (pdu->dest >> 0) & 0xFF;
   *bufptr++ = (pdu->command);
-  memcpy (bufptr, pdu->data, pdu->data_len);
+  if (pdu->data) {
+    memcpy (bufptr, pdu->data, pdu->data_len);
+  }
   bufptr += pdu->data_len;
 
   // Add CRC
@@ -198,7 +213,7 @@ static void send_pdu (PDU *pdu)
   Serial.print ("TX: ");  
   udp_print_packet (buf, bufptr - buf);
 
-  udp_send_packet (buf, bufptr - buf);
+  udp_send_packet (buf, bufptr - buf, is_broadcast);
 }
 
 
@@ -351,18 +366,24 @@ static void handle_pdu (PDU *pdu)
     pdu->source = MY_DEVICE_ID;
 
     // And out we go...
-    send_pdu (pdu);
+    send_pdu (pdu, false);
   }
 }
 
 /**
   * @brief Send UDP packet
   */
-static void udp_send_packet (const uint8_t *buf, int len)
+static void udp_send_packet (const uint8_t *buf, int len, boolean is_broadcast)
 {
-  udp.beginPacket(udp.remoteIP(), udp.remotePort());
-  udp.write(buf, len);
-  udp.endPacket();
+    if (is_broadcast ) {
+        udp.beginPacket(broadcastIp, udp.remotePort());
+    }
+    else {
+        udp.beginPacket(udp.remoteIP(), udp.remotePort());
+    }
+
+    udp.write(buf, len);
+    udp.endPacket();
 }
 
 /**
@@ -448,16 +469,40 @@ void setup(void){
      setupLightSensors();
      LightSenseTicker.attach(LIGHT_SENSE_INTERVAL, triggerLightSense);
      
+     MasterLightRequestTicker.attach(MASTER_REQEST_INTERVAL, triggerMasterLightRequest);
      // Make first measurment
      getAndPrintLight();
      Serial.println("Setup Complite ...");
 }
+void handl_master_logic(void){
+    if (doRequestLight){
+        send_light_reqest_to_all();
+        doRequestLight = false;
+    }
 
 
+
+}
+void send_light_reqest_to_all(void){
+    PDU pdu;
+
+    pdu.transaction_id = 0x1234;
+    pdu.group_id = MY_GROUP_ID;
+    pdu.source = MY_DEVICE_ID;
+    pdu.dest = -1;
+    pdu.command = CMD_READ_SENSORS;
+    pdu.data = NULL;
+    pdu.data_len = 0;
+
+    send_pdu (&pdu,true);
+}
 
 void loop(void){
      if (isWifiConnect){
          udp_manage();
+         if (IM_MASTER){
+             handl_master_logic();
+         }
      }
      else {
         isWifiConnect = tryToConnect();
