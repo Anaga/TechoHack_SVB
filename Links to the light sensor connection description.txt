@@ -1,3 +1,7 @@
 http://blog.simtronyx.de/en/measurement-of-illuminance-with-a-bh1750fvi-breakout-board-gy-30-and-an-arduino-uno/
 http://www.instructables.com/id/BH1750-Digital-Light-Sensor/?ALLSTEPS
 https://lesson.iarduino.ru/page/podklyuchaem-bh1750-datchik-osveschennosti-gy-30-gy-302-k-arduino/
+http://www.engineeringtoolbox.com/light-level-rooms-d_708.html
+http://diyprojects.eu/how-to-use-h-bridge-hg7881-with-external-power-supply-and-arduino/
+https://www.bananarobotics.com/shop/HG7881-(L9110)-Dual-Channel-Motor-Driver-Module
+http://www.instructables.com/id/How-to-use-the-L293D-Motor-Driver-Arduino-Tutorial/?ALLSTEPS
