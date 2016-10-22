@@ -1,14 +1,35 @@
 /*********
   Rui Santos
   Complete project details at http://randomnerdtutorials.com  
+
+
+    This is a simple code to test BH1750FVI Light senosr
+  communicate using I2C Protocol 
+  this library enable 2 slave device address
+  Main address  0x23 
+  secondary address 0x5C 
+  connect this sensor as following :
+  VCC >>> 3.3V
+  SDA >>> A4 
+  SCL >>> A5
+  addr >> A3
+  Gnd >>>Gnd
+
+  Written By : Mohannad Rawashdeh
 *********/
 
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
+#include <Wire.h>
+#include <BH1750FVI.h>
+
 
 MDNSResponder mdns;
+
+BH1750FVI LightSensor;
+
 
 // Replace with your network credentials
 const char* ssid = "N-Router";
@@ -35,7 +56,7 @@ void setup(void){
 //  digitalWrite(gpio0_pin, LOW);
   pinMode(gpio2_pin, OUTPUT);
   digitalWrite(gpio2_pin, LOW);
-  
+  LightSensor.begin();
   delay(1000);
   Serial.begin(115200);
   WiFi.begin(ssid, password);
@@ -43,6 +64,8 @@ void setup(void){
 
   myservo.attach(4);
 
+  LightSensor.SetAddress(Device_Address_H);//Address 0x5C
+  
   // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -57,6 +80,10 @@ void setup(void){
   if (mdns.begin("esp8266", WiFi.localIP())) {
     Serial.println("MDNS responder started");
   }
+
+  LightSensor.SetMode(Continuous_H_resolution_Mode);
+  
+  Serial.println("Running...");
   
   server.on("/", [](){
     server.send(200, "text/html", webPage);
@@ -89,4 +116,10 @@ void setup(void){
  
 void loop(void){
   server.handleClient();
+    uint16_t lux = LightSensor.GetLightIntensity();// Get Lux value
+  Serial.print("Light: ");
+  Serial.print(lux);
+  Serial.println(" lux");
+    delay(1000);
+  
 } 
