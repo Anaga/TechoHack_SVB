@@ -76,26 +76,27 @@ int main (int argc, char **argv)
     int numbytes;
     struct sockaddr_in s;
     uint8_t buf[32];
-
-    buf[0]  = 0; // TID1
-    buf[1]  = 1; // TID2
-    buf[2]  = 1; // GID
-    buf[3]  = 0x00; // FROM
-    buf[4]  = 0x14; // FROM
-    buf[5]  = 0x5A; // FROM
-    buf[6]  = 0x50; // FROM
-    buf[7]  = 0; // TO
-    buf[8]  = 0x17; // TO
-    buf[9]  = 0xAB; // TO
-    buf[10] = 0xBD; // TO
-    buf[11] = 2;
-    buf[12] = 0;
-    buf[13] = 100;
+    uint8_t *bufptr = buf;
+    
+    *bufptr++ = 0; // TID1
+    *bufptr++ = 1; // TID2
+    *bufptr++ = 1; // GID
+    *bufptr++ = 0x00; // FROM
+    *bufptr++  = 0x14; // FROM
+    *bufptr++ = 0x5A; // FROM
+    *bufptr++ = 0x50; // FROM
+    *bufptr++ = 0; // TO
+    *bufptr++ = 0x17; // TO
+    *bufptr++ = 0xAB; // TO
+    *bufptr++ = 0xBD; // TO
+    *bufptr++ = 2;
+    *bufptr++ = 0;
+    *bufptr++ = 100;
  
-    uint16_t crc = CRC16_Calc (buf, 14);
+    uint16_t crc = CRC16_Calc (buf, bufptr - buf);
     printf ("0x%04X\n", crc);
-    buf[14] = (crc >> 8) & 0xFF;
-    buf[15] = (crc >> 0) & 0xFF;
+    *bufptr++ = (crc >> 8) & 0xFF;
+    *bufptr++ = (crc >> 0) & 0xFF;
  
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         perror("socket");

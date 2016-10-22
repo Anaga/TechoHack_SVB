@@ -19,6 +19,8 @@ typedef struct
   const uint8_t *data;
 } PDU;
 
+#define PDU_HDR_AND_CRC_LEN 14
+
 typedef enum {
   CMD_READ_SENSORS    = 1,
   CMD_WRITE_SETPOINT  = 2,
@@ -155,41 +157,43 @@ static void udp_print_packet (const uint8_t *buf, int len);
 static void send_pdu (PDU *pdu)
 {
   uint8_t buf[255];
-
-  if (pdu->data_len + 14 > sizeof (buf)) {
+  uint8_t *bufptr = buf;
+  
+  if ((PDU_HDR_AND_CRC_LEN + pdu->data_len) > sizeof (buf)) {
     Serial.println ("ERR: PDU to big to send");
     return;
   }
 
-  buf[0]  = (pdu->transaction_id >> 8) & 0xFF;
-  buf[1]  = (pdu->transaction_id >> 0) & 0xFF;
-  buf[2]  = (pdu->group_id);
-  buf[3]  = (pdu->source >> 24) & 0xFF;
-  buf[4]  = (pdu->source >> 16) & 0xFF;
-  buf[5]  = (pdu->source >> 8) & 0xFF;
-  buf[6]  = (pdu->source >> 0) & 0xFF;
-  buf[7]  = (pdu->dest >> 24) & 0xFF;
-  buf[8]  = (pdu->dest >> 16) & 0xFF;
-  buf[9]  = (pdu->dest >> 8) & 0xFF;
-  buf[10] = (pdu->dest >> 0) & 0xFF;
-  buf[11] = (pdu->command);
-  memcpy (&buf[12], pdu->data, pdu->data_len);
+  *bufptr++ = (pdu->transaction_id >> 8) & 0xFF;
+  *bufptr++ = (pdu->transaction_id >> 0) & 0xFF;
+  *bufptr++ = (pdu->group_id);
+  *bufptr++ = (pdu->source >> 24) & 0xFF;
+  *bufptr++ = (pdu->source >> 16) & 0xFF;
+  *bufptr++ = (pdu->source >> 8) & 0xFF;
+  *bufptr++ = (pdu->source >> 0) & 0xFF;
+  *bufptr++ = (pdu->dest >> 24) & 0xFF;
+  *bufptr++ = (pdu->dest >> 16) & 0xFF;
+  *bufptr++ = (pdu->dest >> 8) & 0xFF;
+  *bufptr++ = (pdu->dest >> 0) & 0xFF;
+  *bufptr++ = (pdu->command);
+  memcpy (bufptr, pdu->data, pdu->data_len);
+  bufptr += pdu->data_len;
 
   // Add CRC
-  uint16_t crc = CRC16_Calc (buf, 12 + pdu->data_len);
-  buf[12 + pdu->data_len] = (crc >> 8) & 0xFF;
-  buf[12 + pdu->data_len + 1] = crc & 0xFF;
+  uint16_t crc = CRC16_Calc (buf, bufptr - buf);
+  *bufptr++ = (crc >> 8) & 0xFF;
+  *bufptr++ = crc & 0xFF;
 
   Serial.print ("TX: ");  
-  udp_print_packet (buf, 14 + pdu->data_len);
+  udp_print_packet (buf, bufptr - buf);
 
-  udp_send_packet (buf, 14 + pdu->data_len);
+  udp_send_packet (buf, bufptr - buf);
 }
 
 static void handle_pdu (PDU *pdu)
 {
   uint8_t databuf[32];
-  
+  uint8_t *dataptr = databuf;
   // Is this for my group?
   if (pdu->group_id != -1 && pdu->group_id != MY_GROUP_ID) {
     return;
@@ -222,10 +226,10 @@ static void handle_pdu (PDU *pdu)
     switch (pdu->command) {
 
       case CMD_READ_SENSORS: {
-        databuf[0] = (sensors_data[0] >> 8) & 0xFF;
-        databuf[1] = (sensors_data[0] >> 0) & 0xFF;
-        databuf[2] = (sensors_data[1] >> 8) & 0xFF;
-        databuf[3] = (sensors_data[1] >> 0) & 0xFF;
+        *dataptr++ = (sensors_data[0] >> 8) & 0xFF;
+        *dataptr++ = (sensors_data[0] >> 0) & 0xFF;
+        *dataptr++ = (sensors_data[1] >> 8) & 0xFF;
+        *dataptr++ = (sensors_data[1] >> 0) & 0xFF;
         pdu->data_len = sizeof (sensors_data);
       }
       break;
@@ -234,9 +238,9 @@ static void handle_pdu (PDU *pdu)
         if (pdu->data_len == 2) {
           uint16_t sp = (pdu->data[0] << 8 | pdu->data[1]);
           setpoint_set (sp);
-          databuf[0] = 0;
+          *dataptr++ = 0;
         } else {
-          databuf[0] = 1;
+          *dataptr++ = 1;
         }
         pdu->data_len = 1;
       }
@@ -244,16 +248,16 @@ static void handle_pdu (PDU *pdu)
 
       case CMD_READ_SETPOINT: {
           uint16_t sp = setpoint_get ();
-          databuf[0] = (sp >> 8) & 0xFF;
-          databuf[1] = (sp >> 0) & 0xFF;
+          *dataptr++ = (sp >> 8) & 0xFF;
+          *dataptr++ = (sp >> 0) & 0xFF;
           pdu->data_len = 2;
       }
       break;
 
       case CMD_READ_POSITION: {
         uint16_t pos = current_pos_get ();
-        databuf[0] = (pos >> 8) & 0xFF;
-        databuf[1] = (pos >> 0) & 0xFF;
+        *dataptr++ = (pos >> 8) & 0xFF;
+        *dataptr++ = (pos >> 0) & 0xFF;
         pdu->data_len = 2;
       }
       break;
@@ -317,7 +321,7 @@ static int udp_parse_packet (const uint8_t *buf, int len)
   pdu.dest = (buf[7] << 24 | buf[8] << 16 | buf[9] << 8 | buf[10]);
   pdu.command = buf[11];
   pdu.data = &buf[12];
-  pdu.data_len = len - 14;
+  pdu.data_len = len - PDU_HDR_AND_CRC_LEN;
 
   handle_pdu (&pdu);
 
