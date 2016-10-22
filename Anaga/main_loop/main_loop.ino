@@ -2,11 +2,16 @@
 #include <Wire.h>
 #include <BH1750FVI.h>
 #include <WiFiUdp.h>
+#include <Ticker.h>
 #include "CRC_16.h"
 
 BH1750FVI LightSensor1;
 BH1750FVI LightSensor2;
+Ticker LightSenseTicker;
+boolean doLightSense = false;
 
+// Light sense interval in seconds
+#define LIGHT_SENSE_INTERVAL 1.0
 
 WiFiUDP udp;
 IPAddress broadcastIp(192, 168, 0, 255);
@@ -103,12 +108,18 @@ void setupLightSensors(void){
 
   
      // Make first mesurment
-     getAndPrintLigth();
+     getAndPrintLight();
   
 }
 
 
-uint16_t getAndPrintLigth(void){    
+void triggerLightSense (void)
+{
+    doLightSense = true;
+}
+
+
+uint16_t getAndPrintLight(void){    
      priv_lux1 = LightSensor1.GetLightIntensity();// Get Lux value from sensor1
      priv_lux2 = LightSensor2.GetLightIntensity();// And from sensor2
      Serial.print("Light1: ");
@@ -435,9 +446,10 @@ void setup(void){
      Serial.println("");
 
      setupLightSensors();
-  
-     // Make first mesurment
-     getAndPrintLigth();
+     LightSenseTicker.attach(LIGHT_SENSE_INTERVAL, triggerLightSense);
+     
+     // Make first measurment
+     getAndPrintLight();
      Serial.println("Setup Complite ...");
 }
 
@@ -450,8 +462,9 @@ void loop(void){
      else {
         isWifiConnect = tryToConnect();
      }
-     
-     priv_current_pos = getAndPrintLigth();
-     
-     delay(1000);
+
+     if (doLightSense) {
+        priv_current_pos = getAndPrintLight();
+        doLightSense = false;
+     }
 }
