@@ -49,31 +49,31 @@ void loop() {
 motorRun(255);
 calcAverage(analogRead(motorCurrent));
 Serial.print("Motorcurrent: ");
-Serial.print(motorCurrent);
+Serial.print(average);
 Serial.print("  EncoderPos: ");
 Serial.println(encoderPos);
 delay(500);
 motorStop();
 calcAverage(analogRead(motorCurrent));
 Serial.print("Motorcurrent: ");
-Serial.print(motorCurrent);
+Serial.print(average);
 Serial.print("  EncoderPos: ");
 Serial.println(encoderPos);
 delay(500);
 motorRun(-255);
 calcAverage(analogRead(motorCurrent));
 Serial.print("Motorcurrent: ");
-Serial.print(motorCurrent);
+Serial.print(average);
 Serial.print("  EncoderPos: ");
 Serial.println(encoderPos);
 delay(500);
 motorStop();
 calcAverage(analogRead(motorCurrent));
 Serial.print("Motorcurrent: ");
-Serial.print(motorCurrent);
+Serial.print(average);
 Serial.print("  EncoderPos: ");
 Serial.println(encoderPos);
-delay(500);
+delay(5000);
 
 
     delay(1); 
