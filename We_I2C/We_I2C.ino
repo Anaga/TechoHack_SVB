@@ -28,7 +28,8 @@
 
 MDNSResponder mdns;
 
-BH1750FVI LightSensor;
+BH1750FVI LightSensor1;
+BH1750FVI LightSensor2;
 
 
 // Replace with your network credentials
@@ -61,14 +62,19 @@ void setup(void){
 
   myservo.attach(4);
 
-  LightSensor.SetAddress(Device_Address_L);//Address 0x5C
-  LightSensor.SetMode(Continuous_H_resolution_Mode);
+  LightSensor1.SetAddress(Device_Address_L);//Address 0x5C
+  LightSensor1.SetMode(Continuous_H_resolution_Mode);
+  LightSensor2.SetAddress(Device_Address_H);//Address 0x5C
+  LightSensor2.SetMode(Continuous_H_resolution_Mode);
   
   Serial.println("Setup LightSensor ...");
 
-  uint16_t lux = LightSensor.GetLightIntensity();// Get Lux value
-  Serial.print("Light: ");
-  Serial.print(lux);
+  uint16_t lux1 = LightSensor1.GetLightIntensity();// Get Lux value
+  uint16_t lux2 = LightSensor2.GetLightIntensity();// Get Lux value
+  Serial.print("Light: 1 is ");
+  Serial.print(lux1);
+  Serial.print(" lux, 2 is ");
+  Serial.print(lux2);
   Serial.println(" lux");
   
   // Wait for connection
@@ -122,9 +128,12 @@ void setup(void){
  
 void loop(void){
   server.handleClient();
-    uint16_t lux = LightSensor.GetLightIntensity();// Get Lux value
+    uint16_t lux1 = LightSensor1.GetLightIntensity();// Get Lux value
+    uint16_t lux2 = LightSensor1.GetLightIntensity();// Get Lux value
   Serial.print("Light: ");
-  Serial.print(lux);
+  Serial.print(lux1);
+  Serial.print(" lux, 2 is ");
+  Serial.print(lux2);
   Serial.println(" lux");
     delay(1000);
   
