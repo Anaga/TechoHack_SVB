@@ -85,15 +85,17 @@ int main (int argc, char **argv)
     buf[5]  = 0x5A; // FROM
     buf[6]  = 0x50; // FROM
     buf[7]  = 0; // TO
-    buf[8]  = 0; // TO
-    buf[9]  = 0; // TO
-    buf[10] = 0; // TO
-    buf[11] = 1;
+    buf[8]  = 0x17; // TO
+    buf[9]  = 0xAB; // TO
+    buf[10] = 0xBD; // TO
+    buf[11] = 2;
+    buf[12] = 0;
+    buf[13] = 100;
  
-    uint16_t crc = CRC16_Calc (buf, 12);
+    uint16_t crc = CRC16_Calc (buf, 14);
     printf ("0x%04X\n", crc);
-    buf[12] = (crc >> 8) & 0xFF;
-    buf[13] = (crc >> 0) & 0xFF;
+    buf[14] = (crc >> 8) & 0xFF;
+    buf[15] = (crc >> 0) & 0xFF;
  
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         perror("socket");
@@ -111,7 +113,7 @@ int main (int argc, char **argv)
     s.sin_port = htons(UDP_PORT);
     s.sin_addr.s_addr = htonl(INADDR_BROADCAST);
 
-    numbytes = sendto(sockfd, buf, 14, 0, (struct sockaddr *)&s, sizeof(struct sockaddr_in));
+    numbytes = sendto(sockfd, buf, 16, 0, (struct sockaddr *)&s, sizeof(struct sockaddr_in));
     if (numbytes == -1) {
         perror("sendto");
         exit(1);

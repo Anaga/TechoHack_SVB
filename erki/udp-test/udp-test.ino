@@ -20,10 +20,14 @@ typedef struct
 } PDU;
 
 typedef enum {
-  CMD_READ_ALL        = 1,
-  CMD_WRITE_SETPOINT  = 2
-};
+  CMD_READ_SENSORS    = 1,
+  CMD_WRITE_SETPOINT  = 2,
+  CMD_READ_SETPOINT   = 3,
+  CMD_READ_POSITION   = 4,
+} CMDS;
 
+static uint16_t setpoint = 0;
+static uint16_t current_pos = 0;
 static uint16_t sensors_data[] = { 0xABCD, 0xCDEF };
 
 const uint8_t MY_GROUP_ID = 1;
@@ -125,9 +129,28 @@ uint16_t CRC16_Calc (const uint8_t *data, int len)
   return crc16;
 }
 
+void setpoint_set (uint16_t setpoint)
+{
+  if (setpoint > 10000) {
+    setpoint = 10000;
+  }
+  Serial.print ("New setpoint received: ");
+  Serial.println (setpoint);
+}
+
+uint16_t setpoint_get (void)
+{
+  return setpoint;
+}
+
+uint16_t current_pos_get (void)
+{
+  return current_pos;
+}
 
 // ### UDP ##########################################
 static void udp_send_packet (const uint8_t *buf, int len);
+static void udp_print_packet (const uint8_t *buf, int len);
 
 static void send_pdu (PDU *pdu)
 {
@@ -188,34 +211,68 @@ static void handle_pdu (PDU *pdu)
 
   } else {
 
+    // This is command
+
     Serial.print ("Command ");
     Serial.print (pdu->command);
     Serial.print (" received (data_len:");
     Serial.print (pdu->data_len);
     Serial.println (")");
 
-    // This is command - create response
-    pdu->dest = pdu->source;
-    pdu->source = MY_DEVICE_ID;
-  
     switch (pdu->command) {
-      case CMD_READ_ALL:
+
+      case CMD_READ_SENSORS: {
         databuf[0] = (sensors_data[0] >> 8) & 0xFF;
         databuf[1] = (sensors_data[0] >> 0) & 0xFF;
         databuf[2] = (sensors_data[1] >> 8) & 0xFF;
         databuf[3] = (sensors_data[1] >> 0) & 0xFF;
-        pdu->data = databuf;
         pdu->data_len = sizeof (sensors_data);
-        break;
-      case CMD_WRITE_SETPOINT:
-        break;
+      }
+      break;
+
+      case CMD_WRITE_SETPOINT: {
+        if (pdu->data_len == 2) {
+          uint16_t sp = (pdu->data[0] << 8 | pdu->data[1]);
+          setpoint_set (sp);
+          databuf[0] = 0;
+        } else {
+          databuf[0] = 1;
+        }
+        pdu->data_len = 1;
+      }
+      break;
+
+      case CMD_READ_SETPOINT: {
+          uint16_t sp = setpoint_get ();
+          databuf[0] = (sp >> 8) & 0xFF;
+          databuf[1] = (sp >> 0) & 0xFF;
+          pdu->data_len = 2;
+      }
+      break;
+
+      case CMD_READ_POSITION: {
+        uint16_t pos = current_pos_get ();
+        databuf[0] = (pos >> 8) & 0xFF;
+        databuf[1] = (pos >> 0) & 0xFF;
+        pdu->data_len = 2;
+      }
+      break;
+
       default:
         break;
     }
-    
+
+    // Switch data buffer
+    pdu->data = databuf;
+
     // Add response flag
     pdu->command |= 0x80;
 
+    // Swap source and destination
+    pdu->dest = pdu->source;
+    pdu->source = MY_DEVICE_ID;
+
+    // And out we go...
     send_pdu (pdu);
   }
 }
