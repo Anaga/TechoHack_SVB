@@ -28,6 +28,11 @@ typedef enum {
   CMD_READ_POSITION   = 4,
 } CMDS;
 
+typedef enum {
+  CMD_ST_OK   = 0,
+  CMD_ST_ERR  = 1,
+} CMD_STATUS;
+
 static uint16_t setpoint = 0;
 static uint16_t current_pos = 0;
 static uint16_t sensors_data[] = { 0xABCD, 0xCDEF };
@@ -211,8 +216,43 @@ static void handle_pdu (PDU *pdu)
 
   if (pdu->command & 0x80) {
 
-    // This is response...
+    switch (pdu->command ^ 0x80) {
 
+      case CMD_READ_SENSORS: {
+        uint16_t sensor1;
+        uint16_t sensor2;
+        if (pdu->data_len == CMD_ST_OK) {
+          if (pdu->data_len >= 3) {
+            sensor1 = (pdu->data[1] << 8) | pdu->data[2];
+          }
+          if (pdu->data_len >= 4) {
+            sensor2 = (pdu->data[3] << 8) | pdu->data[4];
+          }
+        }
+      }
+      break;
+
+      case CMD_READ_SETPOINT: {
+        uint16_t sp;
+        if (pdu->data_len == CMD_ST_OK) {
+          if (pdu->data_len >= 3) {
+            sp = (pdu->data[1] << 8) | pdu->data[2];
+          }
+        }
+      }
+      break;
+
+      case CMD_READ_POSITION: {
+        uint16_t pos;
+        if (pdu->data_len == CMD_ST_OK) {
+          if (pdu->data_len >= 3) {
+            pos = (pdu->data[1] << 8) | pdu->data[2];
+          }
+        }
+      }
+      break;
+    }
+    
   } else {
 
     // This is command
@@ -226,6 +266,7 @@ static void handle_pdu (PDU *pdu)
     switch (pdu->command) {
 
       case CMD_READ_SENSORS: {
+        *dataptr++ = CMD_ST_OK;
         *dataptr++ = (sensors_data[0] >> 8) & 0xFF;
         *dataptr++ = (sensors_data[0] >> 0) & 0xFF;
         *dataptr++ = (sensors_data[1] >> 8) & 0xFF;
@@ -238,9 +279,9 @@ static void handle_pdu (PDU *pdu)
         if (pdu->data_len == 2) {
           uint16_t sp = (pdu->data[0] << 8 | pdu->data[1]);
           setpoint_set (sp);
-          *dataptr++ = 0;
+          *dataptr++ = CMD_ST_OK;
         } else {
-          *dataptr++ = 1;
+          *dataptr++ = CMD_ST_ERR;
         }
         pdu->data_len = 1;
       }
@@ -248,6 +289,7 @@ static void handle_pdu (PDU *pdu)
 
       case CMD_READ_SETPOINT: {
           uint16_t sp = setpoint_get ();
+          *dataptr++ = CMD_ST_OK;
           *dataptr++ = (sp >> 8) & 0xFF;
           *dataptr++ = (sp >> 0) & 0xFF;
           pdu->data_len = 2;
@@ -256,6 +298,7 @@ static void handle_pdu (PDU *pdu)
 
       case CMD_READ_POSITION: {
         uint16_t pos = current_pos_get ();
+        *dataptr++ = CMD_ST_OK;
         *dataptr++ = (pos >> 8) & 0xFF;
         *dataptr++ = (pos >> 0) & 0xFF;
         pdu->data_len = 2;
