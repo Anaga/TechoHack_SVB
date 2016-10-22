@@ -86,9 +86,10 @@ void setupLightSensors(void){
      LightSensor2.begin();
      
      Serial.println("Setup LightSensor ...");
-     LightSensor2.SetAddress(Device_Address_L);//Address 0x23
+     LightSensor1.SetAddress(Device_Address_L);//Address 0x23
      LightSensor1.SetMode(Continuous_H_resolution_Mode);
-     LightSensor1.SetAddress(Device_Address_H);//Address 0x5C
+
+     LightSensor2.SetAddress(Device_Address_H);//Address 0x5C
      LightSensor2.SetMode(Continuous_H_resolution_Mode);
 
   
@@ -97,21 +98,27 @@ void setupLightSensors(void){
   
 }
 
-uint16_t getAndPrintLigth(void){    
-     uint16_t lux1 = LightSensor1.GetLightIntensity();// Get Lux value from sensor1
-     uint16_t lux2 = LightSensor2.GetLightIntensity();// And from sensor2
-     Serial.print("Light1: ");
-     Serial.print(lux1);
-     Serial.print(" lux, Light2: ");
-     Serial.print(lux2);
-     Serial.println(" lux");
-     return (lux1+lux2)/2;
-    }
 
 // ### DUMMIES ######################################
 static uint16_t setpoint = 0;
 static uint16_t current_pos = 0;
 static uint16_t sensors_data[] = { 0xABCD, 0xCDEF };
+static uint16_t priv_lux1 = 0;
+static uint16_t priv_lux2 = 0;
+
+
+
+uint16_t getAndPrintLigth(void){    
+     priv_lux1 = LightSensor1.GetLightIntensity();// Get Lux value from sensor1
+     priv_lux2 = LightSensor2.GetLightIntensity();// And from sensor2
+     Serial.print("Light1: ");
+     Serial.print(priv_lux1);
+     Serial.print(" lux, Light2: ");
+     Serial.print(priv_lux2);
+     Serial.println(" lux");
+     return (priv_lux1+priv_lux2)/2;
+    }
+
 
 void setpoint_set (uint16_t setpoint)
 {
@@ -218,9 +225,12 @@ static void handle_pdu (PDU *pdu)
     switch (pdu->command ^ 0x80) {
 
       case CMD_READ_SENSORS: {
+        Serial.println ("Got CMD_READ_SENSORS responce from other unit ");
         if (pdu->data_len % 2) {
           for (int i = 0; i < (pdu->data_len - 1) / 2; i++) {
             uint16_t val = pdu->data[i * 2 + 1] << 8 | pdu->data[i * 2 + 2];
+            Serial.print ("Got value ");
+            Serial.println (val);
           }
         }
       }
@@ -254,14 +264,19 @@ static void handle_pdu (PDU *pdu)
     Serial.println (")");
 
     switch (pdu->command) {
-
       case CMD_READ_SENSORS: {
         *dataptr++ = CMD_ST_OK;
-        *dataptr++ = (sensors_data[0] >> 8) & 0xFF;
-        *dataptr++ = (sensors_data[0] >> 0) & 0xFF;
-        *dataptr++ = (sensors_data[1] >> 8) & 0xFF;
-        *dataptr++ = (sensors_data[1] >> 0) & 0xFF;
-        pdu->data_len = sizeof (sensors_data) + 1;
+
+        Serial.print ("CMD_READ_SENSORS, ligth1 value is ");
+        Serial.print (priv_lux1);
+        Serial.print (" CMD_READ_SENSORS, ligt21 value is ");
+        Serial.println (priv_lux2);
+
+        *dataptr++ = (priv_lux1 >> 8) & 0xFF;
+        *dataptr++ = (priv_lux1 >> 0) & 0xFF;
+        *dataptr++ = (priv_lux2 >> 8) & 0xFF;
+        *dataptr++ = (priv_lux2 >> 0) & 0xFF;
+        pdu->data_len = 4 + 1;
       }
       break;
 
