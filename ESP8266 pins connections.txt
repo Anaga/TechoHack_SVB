@@ -1,0 +1,10 @@
+Chip	Arduino	Function
+D8	15	
+D7	13	Encoder A
+D6	12	Encoder B
+D5	14	H-bridge A2
+D0	16	H-Bridge A1
+A0	A0	Motor Current
+		
+D1	5	Light sensor SDA 
+D2	4	Light sensor SCL
