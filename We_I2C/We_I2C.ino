@@ -51,9 +51,6 @@ void setup(void){
   webPage += "<h1>ESP8266 Web Server</h1><p>Socket #1 <a href=\"socket1On\"><button>ON</button></a>&nbsp;<a href=\"socket1Off\"><button>OFF</button></a></p>";
   webPage += "<p>Socket #2 <a href=\"socket2On\"><button>ON</button></a>&nbsp;<a href=\"socket2Off\"><button>OFF</button></a></p>";
   
-  // preparing GPIOs
-//  pinMode(gpio0_pin, OUTPUT);
-//  digitalWrite(gpio0_pin, LOW);
   pinMode(gpio2_pin, OUTPUT);
   digitalWrite(gpio2_pin, LOW);
   LightSensor.begin();
@@ -65,12 +62,22 @@ void setup(void){
   myservo.attach(4);
 
   LightSensor.SetAddress(Device_Address_H);//Address 0x5C
+  LightSensor.SetMode(Continuous_H_resolution_Mode);
+  
+  Serial.println("Setup LightSensor ...");
+
+  uint16_t lux = LightSensor.GetLightIntensity();// Get Lux value
+  Serial.print("Light: ");
+  Serial.print(lux);
+  Serial.println(" lux");
   
   // Wait for connection
+  /*
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
+ 
   Serial.println("");
   Serial.print("Connected to ");
   Serial.println(ssid);
@@ -80,8 +87,6 @@ void setup(void){
   if (mdns.begin("esp8266", WiFi.localIP())) {
     Serial.println("MDNS responder started");
   }
-
-  LightSensor.SetMode(Continuous_H_resolution_Mode);
   
   Serial.println("Running...");
   
@@ -112,6 +117,7 @@ void setup(void){
   });
   server.begin();
   Serial.println("HTTP server started");
+   */
 }
  
 void loop(void){
