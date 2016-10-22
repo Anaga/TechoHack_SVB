@@ -8,6 +8,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <poll.h>
+#include <time.h>
+#include <sys/select.h>
+#include <fcntl.h>
 
 #define UDP_PORT 1555
 
@@ -250,38 +254,43 @@ int handle_packet (const uint8_t *buf, int len)
     pdu.data = &buf[12];
     pdu.data_len = len - PDU_HDR_AND_CRC_LEN;
   
+    // Ignore our own echoes...
+    if (pdu.source == MY_DEVICE_ID) {
+        return 0;
+    }
+    
     printf ("TrID: %d, GID: %d, %d => %d, 0x%02X, data_len: %d\n", pdu.transaction_id, pdu.group_id, pdu.source, pdu.dest, pdu.command, pdu.data_len);
     if (pdu.command & 0x80) {
         if (pdu.data_len >= 1) {
             if (pdu.data[0] == CMD_ST_OK) {
-                printf ("CMD_ST_OK\n");
+                printf ("  - CMD_ST_OK\n");
                 switch (pdu.command ^ 0x80) {
                     case CMD_READ_SENSORS: {
                         if (pdu.data_len % 2) {
                             for (int i = 0; i < (pdu.data_len - 1) / 2; i++) {
                                 uint16_t val = pdu.data[i * 2 + 1] << 8 | pdu.data[i * 2 + 2];
-                                printf ("Sensor %d: %d\n", i + 1, val);
+                                printf ("  - Sensor %d: %d\n", i + 1, val);
                             }
                         } else {
-                            printf ("Invalid data length\n");
+                            printf ("  - Invalid data length\n");
                         }
                     }
                     break;
                     case CMD_READ_SETPOINT: {
                         if (pdu.data_len == 3) {
                             uint16_t sp = pdu.data[1] << 8 | pdu.data[2];
-                            printf ("Setpoint: %d\n", sp);
+                            printf ("  - Setpoint: %d\n", sp);
                         } else {
-                            printf ("Invalid data length\n");
+                            printf ("  - Invalid data length\n");
                         }
                     }
                     break;
                     case CMD_READ_POSITION: {
                         if (pdu.data_len == 3) {
                             uint16_t pos = pdu.data[1] << 8 | pdu.data[2];
-                            printf ("Position: %d\n", pos);
+                            printf ("  - Position: %d\n", pos);
                         } else {
-                            printf ("Invalid data length\n");
+                            printf ("  - Invalid data length\n");
                         }
                     }
                     break;
@@ -292,7 +301,7 @@ int handle_packet (const uint8_t *buf, int len)
             } else {
             }
         } else {
-            printf ("Invalid data length\n");
+            printf ("  - Invalid data length\n");
         }
     }
 }
@@ -302,14 +311,19 @@ int main (int argc, char **argv)
 {
     struct sockaddr_in servaddr;
     int broadcast = 1;
-    int res;
+    int res, pfds;
     uint8_t buf[256];
+    time_t start, now;
 
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         perror("socket");
         exit(1);
     }
 
+    int flags = fcntl(sockfd, F_GETFL, 0);
+    flags |= O_NONBLOCK;
+    fcntl(sockfd, F_SETFL, flags);
+   
     // Enable broadcast
     if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof (broadcast)) == -1) {
         perror("setsockopt (SO_BROADCAST)");
@@ -325,22 +339,13 @@ int main (int argc, char **argv)
         perror("bind");
         exit(1);
     }
-
-    res = cmd_read_setpoint (1, 1551293);
+/*
+    res = cmd_write_setpoint (1, -1, 4500);
     if (res == -1) {
         perror("sendto");
         exit(1);
     }
-
-    printf ("Sent %d bytes\n", res);
-
-    // Disable broadcast
-    broadcast = 0;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof (broadcast)) == -1) {
-        perror("setsockopt (SO_BROADCAST)");
-        exit(1);
-    }
-
+*/
 
     struct sockaddr_storage src_addr;
 
@@ -356,18 +361,67 @@ int main (int argc, char **argv)
     message.msg_control = 0;
     message.msg_controllen = 0;
 
+    fd_set rfds;
+    struct timeval tv;
+    int sw = 0;
+
     while (1) {
 
-        res = recvmsg (sockfd, &message, 0);
-
-        if (res == -1) {
-            perror ("recvmsg");
-        } else if (message.msg_flags & MSG_TRUNC) {
-            printf ("Packet truncated\n");
+        sw++;
+        
+        if (sw == 1) {
+            res = cmd_read_sensors (1, -1);
+        } else if (sw == 2) {
+            res = cmd_read_setpoint (1, -1);
         } else {
-            handle_packet (buf, res);
+            res = cmd_read_position (1, -1);
+            sw = 0;
         }
+        
+        if (res == -1) {
+            perror("sendto");
+            exit(1);
+        }
+        printf ("Sent %d bytes\n", res);
+        
+        start = time (NULL);
+        
+        while (1) {
 
+            FD_ZERO(&rfds);
+            FD_SET(0, &rfds);
+
+            tv.tv_sec = 0;
+            tv.tv_usec = 10000;
+
+            // Doesn't work with UDP?
+            pfds = select (1, &rfds, NULL, NULL, &tv);
+
+            while (1) {
+                res = recvmsg (sockfd, &message, MSG_PEEK);
+    
+                if (res > 0) {
+                    res = recvmsg (sockfd, &message, 0);
+                
+                    if (res == -1) {
+                        perror ("recvmsg");
+                    } else if (message.msg_flags & MSG_TRUNC) {
+                        printf ("Packet truncated\n");
+                    } else {
+                        handle_packet (buf, res);
+                    }
+                } else {
+                    break;
+                }
+            }
+            
+            now = time (NULL);
+            if (now - start > 1) {
+                break;
+            }
+
+        }
+                
     }
 
     close(sockfd);
