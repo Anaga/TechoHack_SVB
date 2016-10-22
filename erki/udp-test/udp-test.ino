@@ -8,6 +8,27 @@
 WiFiUDP udp;
 IPAddress broadcastIp(192, 168, 0, 255);
 
+typedef struct
+{
+  uint16_t transaction_id;
+  uint8_t group_id;
+  uint32_t source;
+  uint32_t dest;
+  uint8_t command;
+  int data_len;
+  const uint8_t *data;
+} PDU;
+
+typedef enum {
+  CMD_READ_ALL        = 1,
+  CMD_WRITE_SETPOINT  = 2
+};
+
+static uint16_t sensors_data[] = { 0xABCD, 0xCDEF };
+
+const uint8_t MY_GROUP_ID = 1;
+uint32_t MY_DEVICE_ID = 0;
+
 // Replace with your network credentials
 const char* ssid = "N-Router";
 const char* password = "adminAdmin";
@@ -106,6 +127,94 @@ uint16_t CRC16_Calc (const uint8_t *data, int len)
 
 
 // ### UDP ##########################################
+static void udp_send_packet (const uint8_t *buf, int len);
+
+static void send_pdu (PDU *pdu)
+{
+  uint8_t buf[255];
+
+  if (pdu->data_len + 14 > sizeof (buf)) {
+    Serial.println ("ERR: PDU to big to send");
+    return;
+  }
+
+  buf[0]  = (pdu->transaction_id >> 8) & 0xFF;
+  buf[1]  = (pdu->transaction_id >> 0) & 0xFF;
+  buf[2]  = (pdu->group_id);
+  buf[3]  = (pdu->source >> 24) & 0xFF;
+  buf[4]  = (pdu->source >> 16) & 0xFF;
+  buf[5]  = (pdu->source >> 8) & 0xFF;
+  buf[6]  = (pdu->source >> 0) & 0xFF;
+  buf[7]  = (pdu->dest >> 24) & 0xFF;
+  buf[8]  = (pdu->dest >> 16) & 0xFF;
+  buf[9]  = (pdu->dest >> 8) & 0xFF;
+  buf[10] = (pdu->dest >> 0) & 0xFF;
+  buf[11] = (pdu->command);
+  memcpy (&buf[12], pdu->data, pdu->data_len);
+
+  // Add CRC
+  uint16_t crc = CRC16_Calc (buf, 12 + pdu->data_len);
+  buf[12 + pdu->data_len] = (crc >> 8) & 0xFF;
+  buf[12 + pdu->data_len + 1] = crc & 0xFF;
+
+  Serial.print ("TX: ");  
+  udp_print_packet (buf, 14 + pdu->data_len);
+
+  udp_send_packet (buf, 14 + pdu->data_len);
+}
+
+static void handle_pdu (PDU *pdu)
+{
+  // Is this for my group?
+  if (pdu->group_id && pdu->group_id != MY_GROUP_ID) {
+    return;
+  }
+
+  // Is this for me?
+  if (pdu->dest && pdu->dest != MY_DEVICE_ID) {
+    return;
+  }
+
+  if (pdu->command & 0x80) {
+
+    // This is response...
+
+  } else {
+
+    Serial.print ("Command ");
+    Serial.print (pdu->command);
+    Serial.print (" received (data_len:");
+    Serial.print (pdu->data_len);
+    Serial.println (")");
+
+    // This is command - create response
+    pdu->dest = pdu->source;
+    pdu->source = MY_DEVICE_ID;
+  
+    switch (pdu->command) {
+      case CMD_READ_ALL:
+        pdu->data = (uint8_t *)sensors_data; // Not good :)
+        pdu->data_len = sizeof (sensors_data);
+        break;
+      case CMD_WRITE_SETPOINT:
+        break;
+      default:
+        break;
+    }
+    
+    // Add response flag
+    pdu->command |= 0x80;
+
+    send_pdu (pdu);
+  }
+}
+
+static void udp_send_packet (const uint8_t *buf, int len)
+{
+  udp.beginPacket(udp.remoteIP(), udp.remotePort());
+  udp.write(buf, len);
+  udp.endPacket();
+}
 
 static void udp_print_packet (const uint8_t *buf, int len)
 {
@@ -120,17 +229,29 @@ static void udp_print_packet (const uint8_t *buf, int len)
 static int udp_parse_packet (const uint8_t *buf, int len)
 {
   uint16_t crc;
+  PDU pdu;
 
   if (len < 6) {
     Serial.println("ERR: UDP packet too small");
     return -1;
   }
+
   crc = buf[len - 2] << 8 | buf[len - 1];
-  
+
   if (crc != CRC16_Calc (buf, len - 2)) {
     Serial.println("ERR: CRC mismatch");
     return -1;
   }
+
+  pdu.transaction_id = ((buf[0] << 8) | buf[1]);
+  pdu.group_id = buf[2];
+  pdu.source = (buf[3] << 24 | buf[4] << 16 | buf[5] << 8 | buf[6]);
+  pdu.dest = (buf[7] << 24 | buf[8] << 16 | buf[9] << 8 | buf[10]);
+  pdu.command = buf[11];
+  pdu.data = &buf[12];
+  pdu.data_len = len - 14;
+
+  handle_pdu (&pdu);
 
   return 0;
 }
@@ -142,7 +263,7 @@ static int udp_parse_packet (const uint8_t *buf, int len)
 static void udp_manage (void)
 {
   // Buffer to hold incoming packet
-  static uint8_t packetBuffer[255];
+  static uint8_t packet[255];
   int packetSize;
 
   // If there's data available, read a packet
@@ -151,29 +272,24 @@ static void udp_manage (void)
   if (packetSize) {
 
     led_touch();
-
+/*
     IPAddress remoteIp = udp.remoteIP();
     int remotePort = udp.remotePort();
     Serial.print(remoteIp);
     Serial.print(":");
     Serial.print(remotePort);
     Serial.print(" - ");
-
+*/
     // read the packet into packetBuffer
-    int len = udp.read(packetBuffer, 255);
+    int len = udp.read(packet, 255);
     if (len >= 0) {
-      udp_print_packet (packetBuffer, len);
-      udp_parse_packet (packetBuffer, len);
-      packetBuffer[len] = 0;
+      Serial.print ("RX: ");
+      udp_print_packet (packet, len);
+      udp_parse_packet (packet, len);
     } else {
       Serial.println("ERR: UDP read failed");
     }
-
-/*
-    udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-    udp.write(ReplyBuffer);
-    udp.endPacket();
-*/
+ 
   }
 
 }
@@ -186,6 +302,7 @@ void setup()
   digitalWrite(PIN_LED, HIGH);
   
   delay(1000);
+
   Serial.begin(115200);
   WiFi.begin(ssid, password);
   Serial.println("");
