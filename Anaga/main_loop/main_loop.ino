@@ -10,9 +10,11 @@ BH1750FVI LightSensor2;
 Ticker LightSenseTicker;
 Ticker MasterLightRequestTicker;
 Ticker MasterSetpointTicker;
+Ticker MasterSetpointRateLimitTicker;
 boolean doLightSense = false;
 boolean doRequestLight = false;
 boolean doBroadcastSetpoint = false;
+boolean allowBroadcastSetpoint = true;
 
 // Light sense interval in seconds
 #define LIGHT_SENSE_INTERVAL 1.0
@@ -20,6 +22,7 @@ boolean doBroadcastSetpoint = false;
 // Light sense interval in seconds
 #define MASTER_REQEST_INTERVAL 5.0
 #define MASTER_SETPOINT_INTERVAL 1.0
+#define MASTER_SETPOINT_RATELIMIT 0.2
 
 #define IM_MASTER 1
 
@@ -137,6 +140,11 @@ void triggerMasterLightRequest (void)
 void triggerBroadcastSetpoint (void)
 {
     doBroadcastSetpoint = true;
+}
+
+void ratelimitBroadcastSetpoint (void)
+{
+    allowBroadcastSetpoint = true;
 }
 
 uint16_t getAndPrintLight(void){    
@@ -490,12 +498,21 @@ void handle_master_logic(void){
         doRequestLight = false;
     }
 
-    if (doBroadcastSetpoint) {
-        send_setpoint_to_all();
+    if (doBroadcastSetpoint && allowBroadcastSetpoint) {
+
+        // Don't allow more setpoints before ratelimit timeout has exceeded
+        allowBroadcastSetpoint = false;
         doBroadcastSetpoint = false;
+
+        // Setpoint 'em all
+        send_setpoint_to_all();
+
+        // Start ratelimit timer
+        MasterSetpointRateLimitTicker.once(MASTER_SETPOINT_RATELIMIT, ratelimitBroadcastSetpoint);
+
+        // Reset the interval timer in case setpoint was not triggered by ticker callback
+        MasterSetpointTicker.attach(MASTER_SETPOINT_INTERVAL, triggerBroadcastSetpoint);
     }
-
-
 }
 
 void send_light_request_to_all(void){
@@ -510,9 +527,6 @@ void send_light_request_to_all(void){
     pdu.data_len = 0;
 
     send_pdu (&pdu,true);
-
-    // Reset the timer in case this function is called directly
-    MasterLightRequestTicker.attach(MASTER_REQEST_INTERVAL, triggerMasterLightRequest);
 }
 
 void send_setpoint_to_all (void) {
@@ -531,9 +545,6 @@ void send_setpoint_to_all (void) {
     pdu.data_len = 2;
 
     send_pdu (&pdu,true);
-
-    // Reset the timer in case this function is called directly
-    MasterSetpointTicker.attach(MASTER_SETPOINT_INTERVAL, triggerBroadcastSetpoint);
 }
 
 void loop(void){
