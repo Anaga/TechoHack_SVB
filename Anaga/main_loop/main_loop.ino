@@ -22,7 +22,8 @@ boolean doRequestLight = false;
 #define IM_MASTER 1
 
 WiFiUDP udp;
-IPAddress broadcastIp(255, 255, 255, 255);
+IPAddress broadcastIp(192, 168, 0, 255);
+#define UDP_PORT 1555
 
 typedef struct
 {
@@ -258,7 +259,7 @@ static void handle_pdu (PDU *pdu)
     switch (pdu->command ^ 0x80) {
 
       case CMD_READ_SENSORS: {
-        Serial.println ("Got CMD_READ_SENSORS responce from other unit ");
+        Serial.println ("Got CMD_READ_SENSORS response from other unit ");
         if (pdu->data_len % 2) {
           for (int i = 0; i < (pdu->data_len - 1) / 2; i++) {
             uint16_t val = pdu->data[i * 2 + 1] << 8 | pdu->data[i * 2 + 2];
@@ -375,13 +376,12 @@ static void handle_pdu (PDU *pdu)
   */
 static void udp_send_packet (const uint8_t *buf, int len, boolean is_broadcast)
 {
-    if (is_broadcast ) {
-        udp.beginPacket(broadcastIp, udp.remotePort());
+    if (is_broadcast) {
+        udp.beginPacket(broadcastIp, UDP_PORT);
     }
     else {
         udp.beginPacket(udp.remoteIP(), udp.remotePort());
     }
-
     udp.write(buf, len);
     udp.endPacket();
 }
@@ -461,6 +461,7 @@ static void udp_manage (void)
 
 void setup(void){
      Serial.begin(115200);
+
      Serial.println("");
      Serial.println("Setup WiFi ...");
      WiFi.begin(ssid, password);
