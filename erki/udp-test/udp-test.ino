@@ -168,12 +168,17 @@ static void handle_pdu (PDU *pdu)
   uint8_t databuf[32];
   
   // Is this for my group?
-  if (pdu->group_id && pdu->group_id != MY_GROUP_ID) {
+  if (pdu->group_id != -1 && pdu->group_id != MY_GROUP_ID) {
     return;
   }
 
   // Is this for me?
-  if (pdu->dest && pdu->dest != MY_DEVICE_ID) {
+  if (pdu->dest != -1 && pdu->dest != MY_DEVICE_ID) {
+    return;
+  }
+
+  // Source must be defined
+  if (pdu->source == -1) {
     return;
   }
 
