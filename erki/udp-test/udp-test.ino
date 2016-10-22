@@ -199,6 +199,7 @@ static void handle_pdu (PDU *pdu)
 {
   uint8_t databuf[32];
   uint8_t *dataptr = databuf;
+
   // Is this for my group?
   if (pdu->group_id != -1 && pdu->group_id != MY_GROUP_ID) {
     return;
@@ -215,6 +216,8 @@ static void handle_pdu (PDU *pdu)
   }
 
   if (pdu->command & 0x80) {
+
+    // This is a response
 
     switch (pdu->command ^ 0x80) {
 
@@ -255,7 +258,7 @@ static void handle_pdu (PDU *pdu)
     
   } else {
 
-    // This is command
+    // This is a command
 
     Serial.print ("Command ");
     Serial.print (pdu->command);

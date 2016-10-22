@@ -11,6 +11,36 @@
 
 #define UDP_PORT 1555
 
+static int sockfd = -1;
+
+typedef struct
+{
+  uint16_t transaction_id;
+  uint8_t group_id;
+  uint32_t source;
+  uint32_t dest;
+  uint8_t command;
+  int data_len;
+  const uint8_t *data;
+} PDU;
+
+#define PDU_HDR_AND_CRC_LEN 14
+
+typedef enum {
+    CMD_READ_SENSORS    = 1,
+    CMD_WRITE_SETPOINT  = 2,
+    CMD_READ_SETPOINT   = 3,
+    CMD_READ_POSITION   = 4,
+} CMDS;
+
+typedef enum {
+    CMD_ST_OK   = 0,
+    CMD_ST_ERR  = 1,
+} CMD_STATUS;
+
+static int16_t transactionID = 0;
+
+#define MY_DEVICE_ID ((0x14 << 16) | (0x5A << 8) | (0x50 << 0))
 
 /** IBM CRC Lookup table. */
 static const uint16_t IBMCRCTable[256]  = {
@@ -68,59 +98,277 @@ uint16_t CRC16_Calc (const uint8_t *data, int len)
   return crc16;
 }
 
-
-int main (int argc, char **argv)
+int udp_send (const uint8_t *buf, int len)
 {
-    int sockfd;
-    int broadcast = 1;
-    int numbytes;
+    int res;
     struct sockaddr_in s;
-    uint8_t buf[32];
-    uint8_t *bufptr = buf;
-    
-    *bufptr++ = 0; // TID1
-    *bufptr++ = 1; // TID2
-    *bufptr++ = 1; // GID
-    *bufptr++ = 0x00; // FROM
-    *bufptr++  = 0x14; // FROM
-    *bufptr++ = 0x5A; // FROM
-    *bufptr++ = 0x50; // FROM
-    *bufptr++ = 0; // TO
-    *bufptr++ = 0x17; // TO
-    *bufptr++ = 0xAB; // TO
-    *bufptr++ = 0xBD; // TO
-    *bufptr++ = 2;
-    *bufptr++ = 0;
-    *bufptr++ = 100;
- 
-    uint16_t crc = CRC16_Calc (buf, bufptr - buf);
-    printf ("0x%04X\n", crc);
-    *bufptr++ = (crc >> 8) & 0xFF;
-    *bufptr++ = (crc >> 0) & 0xFF;
- 
-    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-        perror("socket");
-        exit(1);
-    }
-
-    // this call is what allows broadcast packets to be sent:
-    if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof (broadcast)) == -1) {
-        perror("setsockopt (SO_BROADCAST)");
-        exit(1);
-    }
 
     memset(&s, '\0', sizeof(struct sockaddr_in));
     s.sin_family = AF_INET;
     s.sin_port = htons(UDP_PORT);
     s.sin_addr.s_addr = htonl(INADDR_BROADCAST);
 
-    numbytes = sendto(sockfd, buf, 16, 0, (struct sockaddr *)&s, sizeof(struct sockaddr_in));
-    if (numbytes == -1) {
+    res = sendto(sockfd, buf, len, 0, (struct sockaddr *)&s, sizeof(struct sockaddr_in));
+    if (res == -1) {
+        perror("sendto");
+        return -1;
+    }
+}
+
+int cmd_read_sensors (uint8_t group, int dest_device_id)
+{
+    uint8_t buf[32];
+    uint8_t *bufptr = buf;
+
+    transactionID++;
+
+    *bufptr++ = (transactionID >> 8) & 0xFF;
+    *bufptr++ = (transactionID >> 0) & 0xFF;
+    *bufptr++ = group;
+    *bufptr++ = (MY_DEVICE_ID >> 24) & 0xFF;
+    *bufptr++ = (MY_DEVICE_ID >> 16) & 0xFF;
+    *bufptr++ = (MY_DEVICE_ID >>  8) & 0xFF;
+    *bufptr++ = (MY_DEVICE_ID >>  0) & 0xFF;
+    *bufptr++ = (dest_device_id >> 24) & 0xFF;
+    *bufptr++ = (dest_device_id >> 16) & 0xFF;
+    *bufptr++ = (dest_device_id >>  8) & 0xFF;
+    *bufptr++ = (dest_device_id >>  0) & 0xFF;
+    *bufptr++ = CMD_READ_SENSORS;
+ 
+    uint16_t crc = CRC16_Calc (buf, bufptr - buf);
+    *bufptr++ = (crc >> 8) & 0xFF;
+    *bufptr++ = (crc >> 0) & 0xFF;
+    
+    return udp_send (buf, bufptr - buf);
+}
+
+int cmd_write_setpoint (uint8_t group, int dest_device_id, int16_t setpoint)
+{
+    uint8_t buf[32];
+    uint8_t *bufptr = buf;
+
+    transactionID++;
+
+    *bufptr++ = (transactionID >> 8) & 0xFF;
+    *bufptr++ = (transactionID >> 0) & 0xFF;
+    *bufptr++ = group;
+    *bufptr++ = (MY_DEVICE_ID >> 24) & 0xFF;
+    *bufptr++ = (MY_DEVICE_ID >> 16) & 0xFF;
+    *bufptr++ = (MY_DEVICE_ID >>  8) & 0xFF;
+    *bufptr++ = (MY_DEVICE_ID >>  0) & 0xFF;
+    *bufptr++ = (dest_device_id >> 24) & 0xFF;
+    *bufptr++ = (dest_device_id >> 16) & 0xFF;
+    *bufptr++ = (dest_device_id >>  8) & 0xFF;
+    *bufptr++ = (dest_device_id >>  0) & 0xFF;
+    *bufptr++ = CMD_WRITE_SETPOINT;
+    *bufptr++ = (setpoint >> 8) & 0xFF;
+    *bufptr++ = (setpoint >> 0) & 0xFF;;
+ 
+    uint16_t crc = CRC16_Calc (buf, bufptr - buf);
+    *bufptr++ = (crc >> 8) & 0xFF;
+    *bufptr++ = (crc >> 0) & 0xFF;
+    
+    return udp_send (buf, bufptr - buf);
+}
+
+int cmd_read_setpoint (uint8_t group, int dest_device_id)
+{
+    uint8_t buf[32];
+    uint8_t *bufptr = buf;
+
+    transactionID++;
+
+    *bufptr++ = (transactionID >> 8) & 0xFF;
+    *bufptr++ = (transactionID >> 0) & 0xFF;
+    *bufptr++ = group;
+    *bufptr++ = (MY_DEVICE_ID >> 24) & 0xFF;
+    *bufptr++ = (MY_DEVICE_ID >> 16) & 0xFF;
+    *bufptr++ = (MY_DEVICE_ID >>  8) & 0xFF;
+    *bufptr++ = (MY_DEVICE_ID >>  0) & 0xFF;
+    *bufptr++ = (dest_device_id >> 24) & 0xFF;
+    *bufptr++ = (dest_device_id >> 16) & 0xFF;
+    *bufptr++ = (dest_device_id >>  8) & 0xFF;
+    *bufptr++ = (dest_device_id >>  0) & 0xFF;
+    *bufptr++ = CMD_READ_SETPOINT;
+ 
+    uint16_t crc = CRC16_Calc (buf, bufptr - buf);
+    *bufptr++ = (crc >> 8) & 0xFF;
+    *bufptr++ = (crc >> 0) & 0xFF;
+    
+    return udp_send (buf, bufptr - buf);
+}
+
+int cmd_read_position (uint8_t group, int dest_device_id)
+{
+    uint8_t buf[32];
+    uint8_t *bufptr = buf;
+
+    transactionID++;
+
+    *bufptr++ = (transactionID >> 8) & 0xFF;
+    *bufptr++ = (transactionID >> 0) & 0xFF;
+    *bufptr++ = group;
+    *bufptr++ = (MY_DEVICE_ID >> 24) & 0xFF;
+    *bufptr++ = (MY_DEVICE_ID >> 16) & 0xFF;
+    *bufptr++ = (MY_DEVICE_ID >>  8) & 0xFF;
+    *bufptr++ = (MY_DEVICE_ID >>  0) & 0xFF;
+    *bufptr++ = (dest_device_id >> 24) & 0xFF;
+    *bufptr++ = (dest_device_id >> 16) & 0xFF;
+    *bufptr++ = (dest_device_id >>  8) & 0xFF;
+    *bufptr++ = (dest_device_id >>  0) & 0xFF;
+    *bufptr++ = CMD_READ_POSITION;
+ 
+    uint16_t crc = CRC16_Calc (buf, bufptr - buf);
+    *bufptr++ = (crc >> 8) & 0xFF;
+    *bufptr++ = (crc >> 0) & 0xFF;
+    
+    return udp_send (buf, bufptr - buf);
+}
+
+int handle_packet (const uint8_t *buf, int len)
+{
+    uint16_t crc;
+    PDU pdu;
+
+    if (len < 6) {
+        printf ("ERR: UDP packet too small");
+        return -1;
+    }
+
+    crc = (buf[len - 2] << 8) | buf[len - 1];
+
+    if (crc != CRC16_Calc (buf, len - 2)) {
+        printf ("ERR: CRC mismatch\n");
+        return -1;
+    }
+
+    pdu.transaction_id = ((buf[0] << 8) | buf[1]);
+    pdu.group_id = buf[2];
+    pdu.source = (buf[3] << 24 | buf[4] << 16 | buf[5] << 8 | buf[6]);
+    pdu.dest = (buf[7] << 24 | buf[8] << 16 | buf[9] << 8 | buf[10]);
+    pdu.command = buf[11];
+    pdu.data = &buf[12];
+    pdu.data_len = len - PDU_HDR_AND_CRC_LEN;
+  
+    printf ("TrID: %d, GID: %d, %d => %d, 0x%02X, data_len: %d\n", pdu.transaction_id, pdu.group_id, pdu.source, pdu.dest, pdu.command, pdu.data_len);
+    if (pdu.command & 0x80) {
+        if (pdu.data_len >= 1) {
+            if (pdu.data[0] == CMD_ST_OK) {
+                printf ("CMD_ST_OK\n");
+                switch (pdu.command ^ 0x80) {
+                    case CMD_READ_SENSORS: {
+                        if (pdu.data_len % 2) {
+                            for (int i = 0; i < (pdu.data_len - 1) / 2; i++) {
+                                uint16_t val = pdu.data[i * 2 + 1] << 8 | pdu.data[i * 2 + 2];
+                                printf ("Sensor %d: %d\n", i + 1, val);
+                            }
+                        } else {
+                            printf ("Invalid data length\n");
+                        }
+                    }
+                    break;
+                    case CMD_READ_SETPOINT: {
+                        if (pdu.data_len == 3) {
+                            uint16_t sp = pdu.data[1] << 8 | pdu.data[2];
+                            printf ("Setpoint: %d\n", sp);
+                        } else {
+                            printf ("Invalid data length\n");
+                        }
+                    }
+                    break;
+                    case CMD_READ_POSITION: {
+                        if (pdu.data_len == 3) {
+                            uint16_t pos = pdu.data[1] << 8 | pdu.data[2];
+                            printf ("Position: %d\n", pos);
+                        } else {
+                            printf ("Invalid data length\n");
+                        }
+                    }
+                    break;
+                    default: {
+                    }
+                    break;
+                }
+            } else {
+            }
+        } else {
+            printf ("Invalid data length\n");
+        }
+    }
+}
+
+
+int main (int argc, char **argv)
+{
+    struct sockaddr_in servaddr;
+    int broadcast = 1;
+    int res;
+    uint8_t buf[256];
+
+    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        perror("socket");
+        exit(1);
+    }
+
+    // Enable broadcast
+    if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof (broadcast)) == -1) {
+        perror("setsockopt (SO_BROADCAST)");
+        exit(1);
+    }
+
+    memset(&servaddr, '\0', sizeof(struct sockaddr_in));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = inet_addr ("0.0.0.0");
+    servaddr.sin_port = htons (UDP_PORT);
+
+    if (bind (sockfd, (struct sockaddr *)&servaddr, sizeof(struct sockaddr_in)) == -1) {
+        perror("bind");
+        exit(1);
+    }
+
+    res = cmd_read_setpoint (1, 1551293);
+    if (res == -1) {
         perror("sendto");
         exit(1);
     }
 
-    printf ("sent %d bytes to %s\n", numbytes, inet_ntoa(s.sin_addr));
+    printf ("Sent %d bytes\n", res);
+
+    // Disable broadcast
+    broadcast = 0;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof (broadcast)) == -1) {
+        perror("setsockopt (SO_BROADCAST)");
+        exit(1);
+    }
+
+
+    struct sockaddr_storage src_addr;
+
+    struct iovec iov[1];
+    iov[0].iov_base = buf;
+    iov[0].iov_len = sizeof(buf);
+
+    struct msghdr message;
+    message.msg_name = &src_addr;
+    message.msg_namelen = sizeof(src_addr);
+    message.msg_iov = iov;
+    message.msg_iovlen = 1;
+    message.msg_control = 0;
+    message.msg_controllen = 0;
+
+    while (1) {
+
+        res = recvmsg (sockfd, &message, 0);
+
+        if (res == -1) {
+            perror ("recvmsg");
+        } else if (message.msg_flags & MSG_TRUNC) {
+            printf ("Packet truncated\n");
+        } else {
+            handle_packet (buf, res);
+        }
+
+    }
 
     close(sockfd);
     
