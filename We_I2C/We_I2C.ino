@@ -34,7 +34,8 @@ void setup(void){
   
   pinMode(gpio2_pin, OUTPUT);
   digitalWrite(gpio2_pin, LOW);
-  LightSensor.begin();
+  LightSensor1.begin();
+  LightSensor2.begin();
   delay(1000);
   Serial.begin(115200);
   WiFi.begin(ssid, password);

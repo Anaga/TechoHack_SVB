@@ -4,7 +4,8 @@
 #include <WiFiUdp.h>
 #include "CRC_16.h"
 
-BH1750FVI LightSensor;
+BH1750FVI LightSensor1;
+BH1750FVI LightSensor2;
 
 WiFiUDP udp;
 IPAddress broadcastIp(192, 168, 0, 255);
@@ -27,12 +28,32 @@ boolean tryToConnect(){
     }
     return false;
 }
-uint16_t getAndPrintLigth(void){
-     uint16_t lux = LightSensor.GetLightIntensity();// Get Lux value
-     Serial.print("Light: ");
-     Serial.print(lux);
-     Serial.println(" lux");    
-     return lux;
+
+void setupLightSensors(void){
+     LightSensor1.begin();
+     LightSensor2.begin();
+     
+     Serial.println("Setup LightSensor ...");
+     LightSensor2.SetAddress(Device_Address_L);//Address 0x23
+     LightSensor1.SetMode(Continuous_H_resolution_Mode);
+     LightSensor1.SetAddress(Device_Address_H);//Address 0x5C
+     LightSensor2.SetMode(Continuous_H_resolution_Mode);
+
+  
+     // Make first mesurment
+     getAndPrintLigth();
+  
+}
+
+uint16_t getAndPrintLigth(void){    
+     uint16_t lux1 = LightSensor1.GetLightIntensity();// Get Lux value from sensor1
+     uint16_t lux2 = LightSensor2.GetLightIntensity();// And from sensor2
+     Serial.print("Light1: ");
+     Serial.print(lux1);
+     Serial.print(" lux, Light2: ");
+     Serial.print(lux2);
+     Serial.println(" lux");
+     return (lux1+lux2)/2;
     }
 
 static void udp_print_packet (const uint8_t *buf, int len)
@@ -93,16 +114,13 @@ static void udp_manage (void)
 }
 
 void setup(void){
-     LightSensor.begin();
      Serial.begin(115200);
      Serial.println("");
      Serial.println("Setup WiFi ...");
      WiFi.begin(ssid, password);
      Serial.println("");
-     
-     Serial.println("Setup LightSensor ...");
-     LightSensor.SetAddress(Device_Address_L);//Address 0x5C
-     LightSensor.SetMode(Continuous_H_resolution_Mode);
+
+     setupLightSensors();
   
      // Make first mesurment
      getAndPrintLigth();
