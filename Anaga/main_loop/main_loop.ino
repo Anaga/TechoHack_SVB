@@ -43,6 +43,15 @@ uint32_t MY_DEVICE_ID = 0;
 const char* ssid = "N-Router";
 const char* password = "adminAdmin";
 
+
+// ### DUMMIES ######################################
+static uint16_t priv_setpoint = 0;
+static uint16_t priv_current_pos = 0;
+
+static uint16_t priv_lux1 = 0;
+static uint16_t priv_lux2 = 0;
+
+
 boolean isWifiConnect = false;
 
 int hexdec (char hex)
@@ -99,15 +108,6 @@ void setupLightSensors(void){
 }
 
 
-// ### DUMMIES ######################################
-static uint16_t setpoint = 0;
-static uint16_t current_pos = 0;
-static uint16_t sensors_data[] = { 0xABCD, 0xCDEF };
-static uint16_t priv_lux1 = 0;
-static uint16_t priv_lux2 = 0;
-
-
-
 uint16_t getAndPrintLigth(void){    
      priv_lux1 = LightSensor1.GetLightIntensity();// Get Lux value from sensor1
      priv_lux2 = LightSensor2.GetLightIntensity();// And from sensor2
@@ -120,23 +120,30 @@ uint16_t getAndPrintLigth(void){
     }
 
 
-void setpoint_set (uint16_t setpoint)
+void setpoint_set (uint16_t sp)
 {
-  if (setpoint > 10000) {
-    setpoint = 10000;
-  }
   Serial.print ("New setpoint received: ");
-  Serial.println (setpoint);
+  Serial.println (sp);
+
+  if (sp > 10000) {
+    priv_setpoint = 10000;
+  }
+  else {
+    priv_setpoint = sp;
+  }
+
+  Serial.print ("New setpoint: ");
+  Serial.println (priv_setpoint);
 }
 
 uint16_t setpoint_get (void)
 {
-  return setpoint;
+  return priv_setpoint;
 }
 
 uint16_t current_pos_get (void)
 {
-  return current_pos;
+  return priv_current_pos;
 }
 
 
@@ -281,31 +288,39 @@ static void handle_pdu (PDU *pdu)
       break;
 
       case CMD_WRITE_SETPOINT: {
+        uint16_t sp;
+        Serial.print ("CMD_WRITE_SETPOINT ");
         if (pdu->data_len == 2) {
-          uint16_t sp = (pdu->data[0] << 8 | pdu->data[1]);
+          sp = (pdu->data[0] << 8 | pdu->data[1]);
           setpoint_set (sp);
           *dataptr++ = CMD_ST_OK;
         } else {
           *dataptr++ = CMD_ST_ERR;
+          Serial.print ("CMD_WRITE_SETPOINT, data len not 2!");
         }
+        Serial.println (sp);
         pdu->data_len = 1;
       }
       break;
 
       case CMD_READ_SETPOINT: {
+          Serial.print ("CMD_READ_SETPOINT ");
           uint16_t sp = setpoint_get ();
           *dataptr++ = CMD_ST_OK;
           *dataptr++ = (sp >> 8) & 0xFF;
           *dataptr++ = (sp >> 0) & 0xFF;
           pdu->data_len = 3;
+          Serial.println (sp);
       }
       break;
 
       case CMD_READ_POSITION: {
+        Serial.print ("CMD_READ_POSITION ");
         uint16_t pos = current_pos_get ();
         *dataptr++ = CMD_ST_OK;
         *dataptr++ = (pos >> 8) & 0xFF;
         *dataptr++ = (pos >> 0) & 0xFF;
+        Serial.println (pos);
         pdu->data_len = 3;
       }
       break;
