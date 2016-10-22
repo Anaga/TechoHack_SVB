@@ -165,6 +165,8 @@ static void send_pdu (PDU *pdu)
 
 static void handle_pdu (PDU *pdu)
 {
+  uint8_t databuf[32];
+  
   // Is this for my group?
   if (pdu->group_id && pdu->group_id != MY_GROUP_ID) {
     return;
@@ -193,7 +195,11 @@ static void handle_pdu (PDU *pdu)
   
     switch (pdu->command) {
       case CMD_READ_ALL:
-        pdu->data = (uint8_t *)sensors_data; // Not good :)
+        databuf[0] = (sensors_data[0] >> 8) & 0xFF;
+        databuf[1] = (sensors_data[0] >> 0) & 0xFF;
+        databuf[2] = (sensors_data[1] >> 8) & 0xFF;
+        databuf[3] = (sensors_data[1] >> 0) & 0xFF;
+        pdu->data = databuf;
         pdu->data_len = sizeof (sensors_data);
         break;
       case CMD_WRITE_SETPOINT:
@@ -295,7 +301,18 @@ static void udp_manage (void)
 }
 
 // ### Arduino ######################################
-
+int hexdec (char hex)
+{
+  if (hex >= '0' && hex <= '9') {
+    return hex - '0';
+  } else if (hex >= 'A' && hex <= 'F') {
+    return hex - 'A' + 10;
+  } else if (hex >= 'a' && hex <= 'f') {
+    return hex - 'a' + 10;
+  } else {
+    return 0;
+  }
+}
 void setup() 
 {
   pinMode(PIN_LED, OUTPUT);
@@ -326,7 +343,16 @@ void setup()
   Serial.println(ssid);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+  Serial.print("MAC address: ");
+  Serial.println(WiFi.macAddress());
 
+  char mac[18];
+  WiFi.macAddress().toCharArray (mac, sizeof(mac));
+  MY_DEVICE_ID = ((hexdec(mac[9]) << 20) | (hexdec(mac[10]) << 16) | (hexdec(mac[12]) << 12) | (hexdec(mac[13]) << 8) | (hexdec(mac[15]) << 4) | (hexdec(mac[16]) << 0));
+
+  Serial.print("Device ID: ");
+  Serial.println(MY_DEVICE_ID);
+  
   udp.begin(1555);
 }
 
