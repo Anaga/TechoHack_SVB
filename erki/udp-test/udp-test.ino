@@ -215,21 +215,27 @@ static void handle_pdu (PDU *pdu)
     return;
   }
 
+  char logbuf[128];
+  snprintf (logbuf, sizeof (logbuf), "TrID: %d, GID: %d, %d => %d, 0x%02X, data_len: %d", pdu->transaction_id, pdu->group_id, pdu->source, pdu->dest, pdu->command, pdu->data_len);
+  Serial.println (logbuf);
+
   if (pdu->command & 0x80) {
 
     // This is a response
 
+    if (pdu->data_len < 1) {
+      return;
+    }
+    if (pdu->data[0] != CMD_ST_OK) {
+      return;
+    }
+
     switch (pdu->command ^ 0x80) {
 
       case CMD_READ_SENSORS: {
-        uint16_t sensor1;
-        uint16_t sensor2;
-        if (pdu->data_len == CMD_ST_OK) {
-          if (pdu->data_len >= 3) {
-            sensor1 = (pdu->data[1] << 8) | pdu->data[2];
-          }
-          if (pdu->data_len >= 4) {
-            sensor2 = (pdu->data[3] << 8) | pdu->data[4];
+        if (pdu->data_len % 2) {
+          for (int i = 0; i < (pdu->data_len - 1) / 2; i++) {
+            uint16_t val = pdu->data[i * 2 + 1] << 8 | pdu->data[i * 2 + 2];
           }
         }
       }
@@ -237,20 +243,16 @@ static void handle_pdu (PDU *pdu)
 
       case CMD_READ_SETPOINT: {
         uint16_t sp;
-        if (pdu->data_len == CMD_ST_OK) {
-          if (pdu->data_len >= 3) {
-            sp = (pdu->data[1] << 8) | pdu->data[2];
-          }
+        if (pdu->data_len == 3) {
+          sp = (pdu->data[1] << 8) | pdu->data[2];
         }
       }
       break;
 
       case CMD_READ_POSITION: {
         uint16_t pos;
-        if (pdu->data_len == CMD_ST_OK) {
-          if (pdu->data_len >= 3) {
-            pos = (pdu->data[1] << 8) | pdu->data[2];
-          }
+        if (pdu->data_len == 3) {
+          pos = (pdu->data[1] << 8) | pdu->data[2];
         }
       }
       break;
