@@ -3,12 +3,13 @@
 
 //Operating board pins
 // Encoder connections
-#define encoderPinA  13
-#define encoderPinB  12
+#define encoderPinA  2
+#define encoderPinB  A4
 
 // Mootori H-bridge
-#define motorA 14
-#define motorB 16
+#define motorEna  3
+#define motorA    A1
+#define motorB    A2
 
 // Operating modes etc
 #define mNormal 0
@@ -16,15 +17,15 @@
 #define mUncalibrated 1
 
 // Safety parameters
-#define overLoad 38
-#define calibCurrent 28
+#define overLoad 30
+#define calibCurrent 18
 
 // Variable initialization
-volatile int encoderPos = 0;
-volatile int wantedPos = 100;
+long encoderPos = 0;
+long wantedPos = 100;
 int mode = mUncalibrated; //alustame kalibreerimisest
-volatile int leftBoundary = 0;
-volatile int rightBoundary = 0;
+long leftBoundary = 0;
+long rightBoundary = 0;
 
 // Calculate avg motor current
 const int numReadings = 10;    // <----how many samples r used
@@ -34,7 +35,7 @@ int total = 0;                  // the running total
 int average = 0;                // the average
 
 // Liigutamine ja tagasiside8
-int motorCurrent = A0;          // Mootori voolutugevuse analoogsisend
+int motorCurrent = A5;          // Mootori voolutugevuse analoogsisend
 volatile int motorSpeed = 255;           // mootori kiirus PWM-ga
 
 //####################################
@@ -88,12 +89,14 @@ void motorRun(signed int pwm){
 // To the RIGHT
   if (pwm > 0){   
     digitalWrite(motorB, LOW);
-    digitalWrite(motorA, pwm);
+    digitalWrite(motorA, HIGH);
+    analogWrite(motorEna, pwm);
   }
 // To the LEFT
   else if (pwm < 0){
-    digitalWrite(motorB, pwm);
     digitalWrite(motorA, LOW);
+    digitalWrite(motorB, HIGH);
+    analogWrite(motorEna, abs(pwm));
   }
   else{
     motorStop();
@@ -101,36 +104,27 @@ void motorRun(signed int pwm){
 }
 
 void motorStop(){
-  digitalWrite(motorA, LOW);
-  digitalWrite(motorB, LOW);
-}
-void motorBreak(){
+  analogWrite(motorEna, 0);
   digitalWrite(motorA, HIGH);
   digitalWrite(motorB, HIGH);
+  //averageSettleDown();
 }
-
-//void motorStop(){
-//  analogWrite(motorEna, 0);
-//  digitalWrite(motorA, HIGH);
-//  digitalWrite(motorB, HIGH);
-//  //averageSettleDown();
-//}
-//void motorBreak(){
-//  analogWrite(motorEna, 255);
-//  digitalWrite(motorA, HIGH);
-//  digitalWrite(motorB, HIGH);
-//  //averageSettleDown();
-//}
+void motorBreak(){
+  analogWrite(motorEna, 255);
+  digitalWrite(motorA, HIGH);
+  digitalWrite(motorB, HIGH);
+  //averageSettleDown();
+}
 
 //###################################
 void doMoveIt(){
 //  int _pwm = map((encoderPos - wantedPos),1,250,80,255);
 
-  int a = (wantedPos - encoderPos);
+  long a = (wantedPos - encoderPos);
   Serial.print("delta: ");
   Serial.println(a);
 
-  int abs_a = abs(a);
+  long abs_a = abs(a);
   Serial.print("abs_delta: ");
   Serial.println(abs_a);
   
@@ -197,7 +191,7 @@ void doCalibrate(){
   //average settle down
   averageSettleDown();
 
-  wantedPos = rightBoundary / (int) 2; //Go to mid position
+  wantedPos = rightBoundary / (long) 2; //Go to mid position
   
   Serial.print("leftBoundary: ");
   Serial.print(leftBoundary);
@@ -256,23 +250,21 @@ void SVBsetup(){
     readings[thisReading] = 0;
   }
   pinMode(encoderPinA, INPUT); 
-  pinMode(encoderPinB, INPUT);
-  pinMode(motorA, OUTPUT);
-  pinMode(motorB, OUTPUT); 
+  pinMode(encoderPinB, INPUT); 
 
   attachInterrupt(digitalPinToInterrupt(encoderPinA), doEncoder, CHANGE);  // encoder pin on interrupt 0 - pin 2  
 
 }
 
-int getSVB_WantedPosition(){
+long getSVB_WantedPosition(){
   return wantedPos;
 }
 
-int getSVB_EncoderPosition(){
+long getSVB_EncoderPosition(){
   return encoderPos;
 }
 
-void setSVB_WantedPosition(int value){
+void setSVB_WantedPosition(long value){
   wantedPos = value;
 }
 

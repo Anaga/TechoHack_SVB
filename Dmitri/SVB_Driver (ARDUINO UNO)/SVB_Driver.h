@@ -14,10 +14,10 @@ void doEncoder(void);
     void doCalibrate(void);
     void SVBdrive(void);
     void SVBsetup(void);
-    int getSVB_WantedPosition(void);
-    void setSVB_WantedPosition(int value);
+    long getSVB_WantedPosition(void);
+    void setSVB_WantedPosition(long value);
     void averageSettleDown(void);
-    int getSVB_EncoderPosition(void);
+    long getSVB_EncoderPosition(void);
   #endif
 
 
