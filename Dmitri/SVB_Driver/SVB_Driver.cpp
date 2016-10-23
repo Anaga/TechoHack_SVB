@@ -14,6 +14,7 @@
 #define mNormal 0
 #define mError 9
 #define mUncalibrated 1
+#define mIdle 5
 
 // Safety parameters (mall motor)
 #define small 0
@@ -21,20 +22,23 @@
 #define calibCurrentX 28
 #define calibCurrentY 28
 const int smallNumReadings = 10;    // <----how many samples r 
+int smallKeepSetpoint = false;
 
 // Safety parameters (nig motor)
 #define big 1
-#define bigOverLoad 38
+#define bigOverLoad 80
 #define bigCalibCurrentX 28
 #define bigCalibCurrentY 28
 const int bigNumReadings = 10;    // <----how many samples r 
+int bigKeepSetpoint = false;
 
 // Variable initialization
 volatile int encoderPos = 0;
-volatile int wantedPos = 100;
+volatile int wantedPos = 0;
 int mode = mUncalibrated; //alustame kalibreerimisest
 volatile int leftBoundary = 0;
 volatile int rightBoundary = 0;
+int keepSetpoint = false;
 
 // Calculate avg motor current
 const int numReadings = 10;    // <----how many samples r used
@@ -89,36 +93,50 @@ void motorRun(signed int pwm, int motorNumber){
 //Protection
   if (motorNumber == small){
     if (average > overLoad){
-  motorStop();
-  mode = mError;
-  Serial.print("Overload protection at:");  
-  Serial.println(average);
-  return;
-  }
+      motorStop();
+      mode = mError;
+      Serial.print("Overload protection at:");  
+      Serial.println(average);
+      return;
+    }
+     // To the RIGHT
+    if (pwm > 0){   
+      digitalWrite(motorB, LOW);
+      digitalWrite(motorA, pwm);
+    }
+    // To the LEFT
+    else if (pwm < 0){
+      digitalWrite(motorB, pwm);
+      digitalWrite(motorA, LOW);
+    }
+    else{
+      motorStop();
+    }
   }
   else if (motorNumber == big){
     if (average > bigOverLoad){
-  motorStop();
-  mode = mError;
-  Serial.print("Overload protection at:");  
-  Serial.println(average);
-  return;
-  }
+      motorStop();
+      mode = mError;
+      Serial.print("Overload protection at:");  
+      Serial.println(average);
+      return;
+    }
+         // To the RIGHT
+    if (pwm > 0){   
+      digitalWrite(motorB, LOW);
+      digitalWrite(motorA, pwm);
+    }
+    // To the LEFT
+    else if (pwm < 0){
+      digitalWrite(motorB, pwm);
+      digitalWrite(motorA, LOW);
+    }
+    else{
+      motorStop();
+    }
   }
   
-// To the RIGHT
-  if (pwm > 0){   
-    digitalWrite(motorB, LOW);
-    digitalWrite(motorA, pwm);
-  }
-// To the LEFT
-  else if (pwm < 0){
-    digitalWrite(motorB, pwm);
-    digitalWrite(motorA, LOW);
-  }
-  else{
-    motorStop();
-  }
+
 }
 
 void motorStop(){
@@ -168,6 +186,9 @@ void doMoveIt(int motorNumber){
   }
   else{
     motorStop();
+    if (!keepSetpoint) {
+        mode = mIdle;
+    }
   }
 }
 
@@ -315,7 +336,8 @@ void SVBdrive(int motorNumber){
   Serial.print(" Pos: ");
   Serial.println(encoderPos);
 
-  switch (mode){
+  if(motorNumber == small){
+    switch (mode){
     case mError:
     {
       motorStop();
@@ -331,10 +353,45 @@ void SVBdrive(int motorNumber){
     case mNormal:
     {
       doMoveIt(motorNumber);
+      }
+    break;
+    case mIdle:
+    {
+    }
+    break;
+    }
+  delay(1);
+  } else if (motorNumber == big){
+    switch (mode){
+    case mError:
+    {
+      motorStop();
+      delay(100);
+      mode = mNormal;
+    }
+    break;
+    case mUncalibrated:
+    {
+      //doCalibrate(motorNumber);
+      leftBoundary = 0;
+      rightBoundary = 4400;
+      wantedPos = rightBoundary / (int) 2;
+      mode = mNormal;
+    }
+    break;
+    case mNormal:
+    {
+      doMoveIt(motorNumber);
+    }
+    break;
+    case mIdle:
+    {
     }
     break;
   }
   delay(1);
+  }
+  
 }
 
 void SVBsetup(int motorNumber){
@@ -367,6 +424,30 @@ int getSVB_EncoderPosition(){
 
 void setSVB_WantedPosition(int value){
   wantedPos = value;
+}
+
+void setSVB_RelativeSetpoint (uint16_t sp)
+{
+    int wanted = map (sp, 0, 100, leftBoundary, rightBoundary);
+    setSVB_WantedPosition (wanted);
+    if (mode == mIdle) {
+        mode = mNormal;
+    }
+}
+
+uint16_t getSVB_RelativeSetpoint (void)
+{
+    return map (getSVB_WantedPosition(), leftBoundary, rightBoundary, 0, 100);
+}
+
+uint16_t getSVB_RelativePosition (void)
+{
+    return map (getSVB_EncoderPosition(), leftBoundary, rightBoundary, 0, 100);    
+}
+
+int getSVB_Mode (void)
+{
+    return mode;
 }
 
 
