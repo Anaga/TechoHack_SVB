@@ -22,7 +22,7 @@ Ticker MasterSetpointRateLimitTicker;
 #define MASTER_SETPOINT_INTERVAL 1.0
 #define MASTER_SETPOINT_RATELIMIT 0.2
 
-#define IM_MASTER 1
+#define IM_MASTER 0
 
 WiFiUDP udp;
 IPAddress broadcastIp(192, 168, 0, 255);
@@ -79,7 +79,8 @@ boolean tryToConnect(){
         Serial.print("Device ID: ");
         Serial.println(MY_DEVICE_ID);
 
-        udp.begin(1555);
+        udp_setup();
+
         return true;
     }
     return false;
@@ -152,8 +153,8 @@ uint16_t current_pos_get (void){
 
 
 // ### UDP ##########################################
-static void udp_send_packet (const uint8_t *buf, int len, boolean is_broadcast);
-static void udp_print_packet (const uint8_t *buf, int len);
+// static void udp_send_packet (const uint8_t *buf, int len, boolean is_broadcast);
+// static void udp_print_packet (const uint8_t *buf, int len);
 
 /**
   * @brief Send protocol packet
@@ -349,37 +350,7 @@ static void handle_pdu (PDU *pdu)
     }
 }
 
-/**
-  * @brief Send UDP packet
-  */
-static void udp_send_packet (const uint8_t *buf, int len, boolean is_broadcast)
-{
-    if (is_broadcast) {
-        udp.beginPacket(broadcastIp, UDP_PORT);
-    }
-    else {
-        udp.beginPacket(udp.remoteIP(), udp.remotePort());
-    }
-    udp.write(buf, len);
-    udp.endPacket();
-}
 
-/**
-  * @brief  Print out packet for debugging
-  */
-static void udp_print_packet (const uint8_t *buf, int len)
-{
-    char hex[5];
-    for (int i = 0; i < len; i++) {
-        snprintf (hex, sizeof (hex), "<%02X> ", buf[i]);
-        Serial.print(hex);
-    }
-    Serial.println("");
-}
-
-/**
-  * @brief Validate and handle incoming packet
-  */
 static int udp_parse_packet (const uint8_t *buf, int len)
 {
     uint16_t crc;
@@ -409,6 +380,9 @@ static int udp_parse_packet (const uint8_t *buf, int len)
 
     return 0;
 }
+
+
+
 
 /**
   * @brief  Check for incoming UDP packet
