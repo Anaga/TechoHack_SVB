@@ -15,17 +15,9 @@
 #define mError 9
 #define mUncalibrated 1
 
-// Safety parameters (mall motor)
-#define small 0
+// Safety parameters
 #define overLoad 38
-#define calibCurrentX 28
-#define calibCurrentY 28
-
-// Safety parameters (nig motor)
-#define big 1
-#define bigOverLoad 38
-#define bigCalibCurrentX 28
-#define bigCalibCurrentY 28
+#define calibCurrent 28
 
 // Variable initialization
 volatile int encoderPos = 0;
@@ -82,26 +74,15 @@ void calcAverage(int lastRead){
 
 //######################################
 
-void motorRun(signed int pwm, int motorNumber){
+void motorRun(signed int pwm){
 
 //Protection
-  if (motorNumber == small){
-    if (average > overLoad){
+  if (average > overLoad){
   motorStop();
   mode = mError;
   Serial.print("Overload protection at:");  
   Serial.println(average);
   return;
-  }
-  }
-  else if (motorNumber == big){
-    if (average > bigOverLoad){
-  motorStop();
-  mode = mError;
-  Serial.print("Overload protection at:");  
-  Serial.println(average);
-  return;
-  }
   }
   
 // To the RIGHT
@@ -142,7 +123,7 @@ void motorBreak(){
 //}
 
 //###################################
-void doMoveIt(int motorNumber){
+void doMoveIt(){
 //  int _pwm = map((encoderPos - wantedPos),1,250,80,255);
 
   int a = (wantedPos - encoderPos);
@@ -154,11 +135,11 @@ void doMoveIt(int motorNumber){
   Serial.println(abs_a);
   
   if (a > 20){
-    motorRun(255, motorNumber);
+    motorRun(255);
     Serial.println("Going RIGHT");
   }
   else if (a < -20){
-    motorRun(-255, motorNumber);
+    motorRun(-255);
     Serial.println("Going LEFT");
   }    
   else if (abs_a > 10){
@@ -170,22 +151,22 @@ void doMoveIt(int motorNumber){
 }
 
 //#################################
-void doCalibrate(int motorNumber){
-  if (motorNumber == small){
-    encoderPos = 0;
+void doCalibrate(){
+  
+  encoderPos = 0;
 
   Serial.println("Start calibration!");
 
   //left direction
   do 
   {
-    motorRun(-255, motorNumber);
+    motorRun(-255);
       delay(50);
     calcAverage(analogRead(motorCurrent));
     Serial.print(encoderPos);
     Serial.print(" ");
     Serial.println(average);
-  } while (average < calibCurrentX);
+  } while (average < calibCurrent);
   
   encoderPos = 0;
   leftBoundary = encoderPos;
@@ -200,13 +181,13 @@ void doCalibrate(int motorNumber){
   //right direction
   do 
   {
-    motorRun(255, motorNumber);
+    motorRun(255);
       delay(50);
     calcAverage(analogRead(motorCurrent));
       Serial.print(encoderPos);
       Serial.print(" ");
       Serial.println(average);
-  } while (average < calibCurrentY);
+  } while (average < calibCurrent);
   
   rightBoundary = encoderPos;
 
@@ -226,63 +207,6 @@ void doCalibrate(int motorNumber){
   Serial.println(wantedPos);
 
   mode = mNormal;
-  }      
-  else if (motorNumber == big){
-    encoderPos = 0;
-
-  Serial.println("Start calibration!");
-
-  //left direction
-  do 
-  {
-    motorRun(-255, motorNumber);
-      delay(50);
-    calcAverage(analogRead(motorCurrent));
-    Serial.print(encoderPos);
-    Serial.print(" ");
-    Serial.println(average);
-  } while (average < bigCalibCurrentX);
-  
-  encoderPos = 0;
-  leftBoundary = encoderPos;
-  motorStop();
-  Serial.println("Left Calibrated");
-
-  //average settle down
-  averageSettleDown();
-  
-  Serial.println("Settled");
-
-  //right direction
-  do 
-  {
-    motorRun(255, motorNumber);
-      delay(50);
-    calcAverage(analogRead(motorCurrent));
-      Serial.print(encoderPos);
-      Serial.print(" ");
-      Serial.println(average);
-  } while (average < bigCalibCurrentY);
-  
-  rightBoundary = encoderPos;
-
-  motorStop();
-  Serial.println("Right Calibrated");
-
-  //average settle down
-  averageSettleDown();
-
-  wantedPos = rightBoundary / (int) 2; //Go to mid position
-  
-  Serial.print("leftBoundary: ");
-  Serial.print(leftBoundary);
-  Serial.print("   rightBoundary: ");
-  Serial.print(rightBoundary);
-  Serial.print("   wantedPos: ");
-  Serial.println(wantedPos);
-
-  mode = mNormal;
-  }
 }
 
 void averageSettleDown(){
@@ -296,18 +220,10 @@ void averageSettleDown(){
   } while (average > 15);
 }
 
-void SVBdrive(int motorNumber){
+void SVBdrive(){
   calcAverage(analogRead(motorCurrent));
 
-  Serial.print("Mode: ");
   Serial.print(mode);
-  Serial.print("Motor: ");
-  if(motorNumber == small){
-    Serial.print("small");
-  } else if (motorNumber == big){
-    Serial.print("big");
-  }
-  Serial.print(motorNumber);
   Serial.print(" Avg: ");
   Serial.print(average);
   Serial.print(" Pos: ");
@@ -323,12 +239,12 @@ void SVBdrive(int motorNumber){
     break;
     case mUncalibrated:
     {
-      doCalibrate(motorNumber);
+      doCalibrate();
     }
     break;
     case mNormal:
     {
-      doMoveIt(motorNumber);
+      doMoveIt();
     }
     break;
   }

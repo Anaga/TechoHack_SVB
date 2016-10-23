@@ -7,12 +7,12 @@
 
 void doEncoder(void);
     void calcAverage(int lastRead);
-    void motorRun(signed int pwm, int motorNumber);
+    void motorRun(signed int pwm);
     void motorStop(void);
     void motorBreak(void);
-    void doMoveIt(int motorNumber);
-    void doCalibrate(int motorNumber);
-    void SVBdrive(int motorNumber);
+    void doMoveIt(void);
+    void doCalibrate(void);
+    void SVBdrive(void);
     void SVBsetup(void);
     int getSVB_WantedPosition(void);
     void setSVB_WantedPosition(int value);
