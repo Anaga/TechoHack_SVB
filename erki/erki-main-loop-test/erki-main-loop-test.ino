@@ -32,6 +32,8 @@ IPAddress broadcastIp(192, 168, 0, 255);
 
 #define PDU_HDR_AND_CRC_LEN 14
 
+#define LIGHT_GEST 300
+
 const uint8_t MY_GROUP_ID = 1;
 uint32_t MY_DEVICE_ID = 0;
 
@@ -53,6 +55,9 @@ static uint16_t priv_lux2 = 0;
 static int priv_svb_step = 0;
 // ### Interenal Unit values #####
 
+void send_command_open_all();
+
+void send_command_close_all();
 
 int hexdec (char hex){
     if (hex >= '0' && hex <= '9') {
@@ -65,6 +70,7 @@ int hexdec (char hex){
         return 0;
     }
 }
+
 
 boolean tryToConnect(){
     if (WiFi.status() == WL_CONNECTED) {
@@ -463,8 +469,40 @@ void setup(void){
     // Make first measurment
     getAndPrintLight();
     Serial.println("Setup Complite ...");
+    light_logic();
 }
 
+void light_logic(void){
+    /*
+Light1: 162 lux, Light2: 71 lux
+Light1: 162 lux, Light2: 72 lux
+Light1: 162 lux, Light2: 72 lux
+Light1: 162 lux, Light2: 72 lux
+Light1: 162 lux, Light2: 70 lux
+Light1: 162 lux, Light2: 67 lux
+Light1: 162 lux, Light2: 61 lux
+Light1: 162 lux, Light2: 65 lux
+Light1: 169 lux, Light2: 850 lux
+Light1: 169 lux, Light2: 2045 lux
+Light1: 169 lux, Light2: 1954 lux
+Light1: 160 lux, Light2: 53 lux
+Light1: 161 lux, Light2: 68 lux
+Light1: 161 lux, Light2: 72 lux
+Light1: 161 lux, Light2: 72 lux
+    */
+
+    uint16_t in_sen_val = priv_lux1;
+    uint16_t out_sen_val = priv_lux2;
+    int16_t delta = out_sen_val - in_sen_val;
+
+    if (delta > LIGHT_GEST) {
+        send_command_open_all();
+    }
+    if (delta < -LIGHT_GEST) {
+        send_command_close_all();
+    }
+
+}
 void handle_master_logic(void){
     static int oldPosition = -1;
     int currentPosition;
@@ -497,6 +535,17 @@ void handle_master_logic(void){
         // Reset the interval timer in case setpoint was not triggered by ticker callback
         MasterSetpointTicker.attach(MASTER_SETPOINT_INTERVAL, triggerBroadcastSetpoint);
     }
+    light_logic();
+}
+
+void send_command_open_all(void){
+    Serial.println("send_command_open_all ...");
+    setSVB_RelativeSetpoint(50);
+}
+
+void send_command_close_all(void){
+    Serial.println("send_command_close_all ...");
+    setSVB_RelativeSetpoint(0);
 }
 
 void send_light_request_to_all(void){
