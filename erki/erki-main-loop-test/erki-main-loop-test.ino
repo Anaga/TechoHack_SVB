@@ -466,10 +466,21 @@ void setup(void){
 }
 
 void handle_master_logic(void){
+    static int oldPosition = -1;
+    int currentPosition;
+    
     if (doRequestLight){
         send_light_request_to_all();
         doRequestLight = false;
     }
+
+    currentPosition = getSVB_RelativePosition ();
+    if (oldPosition >= 0) {
+      if (currentPosition != oldPosition) {
+        triggerBroadcastSetpoint ();
+      }
+    }
+    oldPosition = getSVB_RelativePosition ();
 
     if (doBroadcastSetpoint && allowBroadcastSetpoint) {
 
@@ -506,8 +517,10 @@ void send_setpoint_to_all (void) {
     uint8_t databuf[2];
     PDU pdu;
 
-    databuf[0] = (priv_setpoint >> 8) & 0xFF;
-    databuf[1] = (priv_setpoint >> 0) & 0xFF;
+    uint16_t currentPosition = getSVB_RelativePosition ();
+
+    databuf[0] = (currentPosition >> 8) & 0xFF;
+    databuf[1] = (currentPosition >> 0) & 0xFF;
 
     pdu.transaction_id = 0x1234;
     pdu.group_id = MY_GROUP_ID;
@@ -538,28 +551,4 @@ void loop(void){
 
   SVBdrive(); 
   delay(25);
-/*
-  if (abs(getSVB_EncoderPosition() - getSVB_WantedPosition()) < 20){
-    Serial.print("Delta: ");
-    Serial.println(abs(getSVB_EncoderPosition() - getSVB_WantedPosition()));
-    if (priv_svb_step == 0){
-      setSVB_WantedPosition(getSVB_WantedPosition() + (int) 200);
-      Serial.print("New wanted: ");
-      Serial.println(getSVB_WantedPosition());
-      priv_svb_step = 1;      
-    }
-    else if (priv_svb_step == 1){
-      setSVB_WantedPosition(getSVB_WantedPosition() - (int) 400);
-      Serial.print("New wanted: ");
-      Serial.println(getSVB_WantedPosition());
-      priv_svb_step = 2;      
-    }
-    else if (priv_svb_step == 2){
-      setSVB_WantedPosition(getSVB_WantedPosition() + (int) 200);
-      Serial.print("New wanted: ");
-      Serial.println(getSVB_WantedPosition());
-      priv_svb_step = 0;      
-    }
-  }
-*/
 }

@@ -303,6 +303,21 @@ int handle_packet (const uint8_t *buf, int len)
         } else {
             printf ("  - Invalid data length\n");
         }
+    } else {
+        switch (pdu.command) {
+            case CMD_WRITE_SETPOINT: {
+                if (pdu.data_len == 2) {
+                    uint16_t sp = pdu.data[0] << 8 | pdu.data[1];
+                    printf ("  - Setpoint: %d\n", sp);
+                } else {
+                    printf ("  - Invalid data length\n");
+                }
+            }
+            break;
+            default: {
+            }
+            break;
+        }
     }
 }
 
@@ -339,13 +354,6 @@ int main (int argc, char **argv)
         perror("bind");
         exit(1);
     }
-/*
-    res = cmd_write_setpoint (1, -1, 4500);
-    if (res == -1) {
-        perror("sendto");
-        exit(1);
-    }
-*/
 
     struct sockaddr_storage src_addr;
 
@@ -364,6 +372,14 @@ int main (int argc, char **argv)
     fd_set rfds;
     struct timeval tv;
     int sw = 0;
+
+
+    res = cmd_write_setpoint (1, -1, 10000);
+    if (res == -1) {
+        perror("sendto");
+        exit(1);
+    }
+
 
     while (1) {
 

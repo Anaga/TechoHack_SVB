@@ -21,6 +21,7 @@ void doEncoder(void);
     void setSVB_RelativeSetpoint (uint16_t sp);
     uint16_t getSVB_RelativeSetpoint (void);
     uint16_t getSVB_RelativePosition (void);
+    int getSVB_Mode (void);
   #endif
 
 

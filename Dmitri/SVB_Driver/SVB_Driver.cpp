@@ -14,10 +14,11 @@
 #define mNormal 0
 #define mError 9
 #define mUncalibrated 1
+#define mIdle 5
 
 // Safety parameters
 #define overLoad 38
-#define calibCurrent 30
+#define calibCurrent 28
 
 // Variable initialization
 volatile int encoderPos = 0;
@@ -36,6 +37,8 @@ int average = 0;                // the average
 // Liigutamine ja tagasiside8
 int motorCurrent = A0;          // Mootori voolutugevuse analoogsisend
 volatile int motorSpeed = 255;           // mootori kiirus PWM-ga
+
+int keepSetpoint = false;
 
 //####################################
 
@@ -147,6 +150,9 @@ void doMoveIt(){
   }
   else{
     motorStop();
+    if (!keepSetpoint) {
+        mode = mIdle;
+    }
   }
 }
 
@@ -246,6 +252,9 @@ void SVBdrive(){
     {
       doMoveIt();
     }
+    case mIdle:
+    {
+    }
     break;
   }
   delay(1);
@@ -280,6 +289,9 @@ void setSVB_RelativeSetpoint (uint16_t sp)
 {
     int wanted = map (sp, 0, 100, leftBoundary, rightBoundary);
     setSVB_WantedPosition (wanted);
+    if (mode == mIdle) {
+        mode = mNormal;
+    }
 }
 
 uint16_t getSVB_RelativeSetpoint (void)
@@ -290,5 +302,10 @@ uint16_t getSVB_RelativeSetpoint (void)
 uint16_t getSVB_RelativePosition (void)
 {
     return map (getSVB_EncoderPosition(), leftBoundary, rightBoundary, 0, 100);    
+}
+
+int getSVB_Mode (void)
+{
+    return mode;
 }
 
