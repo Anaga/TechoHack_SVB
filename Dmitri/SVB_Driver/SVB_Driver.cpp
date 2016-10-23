@@ -17,7 +17,7 @@
 
 // Safety parameters
 #define overLoad 38
-#define calibCurrent 28
+#define calibCurrent 30
 
 // Variable initialization
 volatile int encoderPos = 0;
@@ -276,5 +276,19 @@ void setSVB_WantedPosition(int value){
   wantedPos = value;
 }
 
+void setSVB_RelativeSetpoint (uint16_t sp)
+{
+    int wanted = map (sp, 0, 100, leftBoundary, rightBoundary);
+    setSVB_WantedPosition (wanted);
+}
 
+uint16_t getSVB_RelativeSetpoint (void)
+{
+    return map (getSVB_WantedPosition(), leftBoundary, rightBoundary, 0, 100);
+}
+
+uint16_t getSVB_RelativePosition (void)
+{
+    return map (getSVB_EncoderPosition(), leftBoundary, rightBoundary, 0, 100);    
+}
 
