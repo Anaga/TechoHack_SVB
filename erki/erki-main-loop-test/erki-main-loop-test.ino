@@ -24,7 +24,7 @@ Ticker MasterSetpointRateLimitTicker;
 #define MASTER_SETPOINT_INTERVAL 1.0
 #define MASTER_SETPOINT_RATELIMIT 0.2
 
-#define IM_MASTER 0
+#define IM_MASTER 1
 
 WiFiUDP udp;
 IPAddress broadcastIp(192, 168, 0, 255);
@@ -37,8 +37,8 @@ IPAddress broadcastIp(192, 168, 0, 255);
 const uint8_t MY_GROUP_ID = 1;
 uint32_t MY_DEVICE_ID = 0;
 
-const char* ssid = "N-Router";
-const char* password = "adminAdmin";
+const char* ssid = "SVB";
+const char* password = "12345678";
 boolean doLightSense = false;
 boolean doRequestLight = false;
 boolean doBroadcastSetpoint = false;
@@ -151,6 +151,9 @@ void setpoint_set (uint16_t sp){
     Serial.print ("New setpoint: ");
     Serial.println (priv_setpoint);
     setSVB_RelativeSetpoint (priv_setpoint / 100);
+
+    Serial.print ("Mode: ");
+    Serial.println (getSVB_Mode());
 }
 
 uint16_t setpoint_get (void){
@@ -464,7 +467,7 @@ void setup(void){
     MasterSetpointTicker.attach(MASTER_SETPOINT_INTERVAL, triggerBroadcastSetpoint);
 
     // Set up motor control
-    SVBsetup();
+    SVBsetup(!IM_MASTER);
 
     // Make first measurment
     getAndPrintLight();
@@ -473,6 +476,9 @@ void setup(void){
 }
 
 void light_logic(void){
+  static int is_open = 0;
+  static int is_close = 0;
+  
     /*
 Light1: 162 lux, Light2: 71 lux
 Light1: 162 lux, Light2: 72 lux
@@ -496,10 +502,18 @@ Light1: 161 lux, Light2: 72 lux
     int16_t delta = out_sen_val - in_sen_val;
 
     if (delta > LIGHT_GEST) {
-        send_command_open_all();
+        if (!is_open) {
+          is_open = 1;
+          is_close = 0;
+          send_command_open_all();    
+        }
     }
     if (delta < -LIGHT_GEST) {
-        send_command_close_all();
+        if (!is_close) {
+          is_open = 0;
+          is_close = 1;
+          send_command_close_all();    
+        }
     }
 
 }
@@ -566,10 +580,17 @@ void send_setpoint_to_all (void) {
     uint8_t databuf[2];
     PDU pdu;
 
-    uint16_t currentPosition = getSVB_RelativePosition ();
+    int currentPosition = getSVB_RelativePosition () * 100;
 
-    databuf[0] = (currentPosition >> 8) & 0xFF;
-    databuf[1] = (currentPosition >> 0) & 0xFF;
+    if (currentPosition > 10000) {
+      currentPosition = 10000;
+    } else if (currentPosition < 0) {
+      currentPosition = 0;
+    }
+
+    uint16_t curPos16 = (uint16_t)currentPosition;
+    databuf[0] = (curPos16 >> 8) & 0xFF;
+    databuf[1] = (curPos16 >> 0) & 0xFF;
 
     pdu.transaction_id = 0x1234;
     pdu.group_id = MY_GROUP_ID;
@@ -598,6 +619,6 @@ void loop(void){
         doLightSense = false;
     }
 
-  SVBdrive(); 
+  SVBdrive(!IM_MASTER); 
   delay(25);
 }

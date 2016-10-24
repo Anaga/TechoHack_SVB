@@ -26,7 +26,7 @@ int smallKeepSetpoint = false;
 
 // Safety parameters (nig motor)
 #define big 1
-#define bigOverLoad 80
+#define bigOverLoad 90
 #define bigCalibCurrentX 28
 #define bigCalibCurrentY 28
 const int bigNumReadings = 10;    // <----how many samples r 
@@ -166,12 +166,12 @@ void doMoveIt(int motorNumber){
 //  int _pwm = map((encoderPos - wantedPos),1,250,80,255);
 
   int a = (wantedPos - encoderPos);
-  Serial.print("delta: ");
-  Serial.println(a);
+//  Serial.print("delta: ");
+//  Serial.println(a);
 
   int abs_a = abs(a);
-  Serial.print("abs_delta: ");
-  Serial.println(abs_a);
+//  Serial.print("abs_delta: ");
+//  Serial.println(abs_a);
   
   if (a > 20){
     motorRun(255, motorNumber);
@@ -197,114 +197,114 @@ void doCalibrate(int motorNumber){
   if (motorNumber == small){
     encoderPos = 0;
 
-  Serial.println("Start calibration!");
+      Serial.println("Start calibration!");
 
-  //left direction
-  do 
-  {
-    motorRun(-255, motorNumber);
-      delay(50);
-    calcAverage(analogRead(motorCurrent));
-    Serial.print(encoderPos);
-    Serial.print(" ");
-    Serial.println(average);
-  } while (average < calibCurrentX);
-  
-  encoderPos = 0;
-  leftBoundary = encoderPos;
-  motorStop();
-  Serial.println("Left Calibrated");
+      //left direction
+      do 
+      {
+        motorRun(-255, motorNumber);
+          delay(50);
+        calcAverage(analogRead(motorCurrent));
+        Serial.print(encoderPos);
+        Serial.print(" ");
+        Serial.println(average);
+      } while (average < calibCurrentX);
+      
+      encoderPos = 0;
+      leftBoundary = encoderPos;
+      motorStop();
+      Serial.println("Left Calibrated");
 
-  //average settle down
-  averageSettleDown();
-  
-  Serial.println("Settled");
+      //average settle down
+      averageSettleDown();
+      
+      Serial.println("Settled");
 
-  //right direction
-  do 
-  {
-    motorRun(255, motorNumber);
-      delay(50);
-    calcAverage(analogRead(motorCurrent));
-      Serial.print(encoderPos);
-      Serial.print(" ");
-      Serial.println(average);
-  } while (average < calibCurrentY);
-  
-  rightBoundary = encoderPos;
+      //right direction
+      do 
+      {
+        motorRun(255, motorNumber);
+          delay(50);
+        calcAverage(analogRead(motorCurrent));
+          Serial.print(encoderPos);
+          Serial.print(" ");
+          Serial.println(average);
+      } while (average < calibCurrentY);
+      
+      rightBoundary = encoderPos;
 
-  motorStop();
-  Serial.println("Right Calibrated");
+      motorStop();
+      Serial.println("Right Calibrated");
 
-  //average settle down
-  averageSettleDown();
+      //average settle down
+      averageSettleDown();
 
-  wantedPos = rightBoundary / (int) 2; //Go to mid position
-  
-  Serial.print("leftBoundary: ");
-  Serial.print(leftBoundary);
-  Serial.print("   rightBoundary: ");
-  Serial.print(rightBoundary);
-  Serial.print("   wantedPos: ");
-  Serial.println(wantedPos);
+      wantedPos = rightBoundary / (int) 2; //Go to mid position
+      
+      Serial.print("leftBoundary: ");
+      Serial.print(leftBoundary);
+      Serial.print("   rightBoundary: ");
+      Serial.print(rightBoundary);
+      Serial.print("   wantedPos: ");
+      Serial.println(wantedPos);
 
-  mode = mNormal;
-  }      
+      mode = mNormal;
+      }      
   else if (motorNumber == big){
     encoderPos = 0;
 
-  Serial.println("Start calibration!");
+      Serial.println("Start calibration!");
 
-  //left direction
-  do 
-  {
-    motorRun(-255, motorNumber);
-      delay(50);
-    calcAverage(analogRead(motorCurrent));
-    Serial.print(encoderPos);
-    Serial.print(" ");
-    Serial.println(average);
-  } while (average < bigCalibCurrentX);
-  
-  encoderPos = 0;
-  leftBoundary = encoderPos;
-  motorStop();
-  Serial.println("Left Calibrated");
+      //left direction
+      do 
+      {
+        motorRun(-255, motorNumber);
+          delay(50);
+        calcAverage(analogRead(motorCurrent));
+        Serial.print(encoderPos);
+        Serial.print(" ");
+        Serial.println(average);
+      } while (average < bigCalibCurrentX);
+      
+      encoderPos = 0;
+      leftBoundary = encoderPos;
+      motorStop();
+      Serial.println("Left Calibrated");
 
-  //average settle down
-  averageSettleDown();
-  
-  Serial.println("Settled");
+      //average settle down
+      averageSettleDown();
+      
+      Serial.println("Settled");
 
-  //right direction
-  do 
-  {
-    motorRun(255, motorNumber);
-      delay(50);
-    calcAverage(analogRead(motorCurrent));
-      Serial.print(encoderPos);
-      Serial.print(" ");
-      Serial.println(average);
-  } while (average < bigCalibCurrentY);
-  
-  rightBoundary = encoderPos;
+      //right direction
+      do 
+      {
+        motorRun(255, motorNumber);
+          delay(50);
+        calcAverage(analogRead(motorCurrent));
+          Serial.print(encoderPos);
+          Serial.print(" ");
+          Serial.println(average);
+      } while (average < bigCalibCurrentY);
+      
+      rightBoundary = encoderPos;
 
-  motorStop();
-  Serial.println("Right Calibrated");
+      motorStop();
+      Serial.println("Right Calibrated");
 
-  //average settle down
-  averageSettleDown();
+      //average settle down
+      averageSettleDown();
 
-  wantedPos = rightBoundary / (int) 2; //Go to mid position
-  
-  Serial.print("leftBoundary: ");
-  Serial.print(leftBoundary);
-  Serial.print("   rightBoundary: ");
-  Serial.print(rightBoundary);
-  Serial.print("   wantedPos: ");
-  Serial.println(wantedPos);
+      wantedPos = rightBoundary / (int) 2; //Go to mid position
+      
+      Serial.print("leftBoundary: ");
+      Serial.print(leftBoundary);
+      Serial.print("   rightBoundary: ");
+      Serial.print(rightBoundary);
+      Serial.print("   wantedPos: ");
+      Serial.println(wantedPos);
 
-  mode = mNormal;
+      mode = mNormal;
   }
 }
 
@@ -321,7 +321,7 @@ void averageSettleDown(){
 
 void SVBdrive(int motorNumber){
   calcAverage(analogRead(motorCurrent));
-
+/*
   Serial.print("Mode: ");
   Serial.print(mode);
   Serial.print("Motor: ");
@@ -335,7 +335,7 @@ void SVBdrive(int motorNumber){
   Serial.print(average);
   Serial.print(" Pos: ");
   Serial.println(encoderPos);
-
+*/
   if(motorNumber == small){
     switch (mode){
     case mError:
@@ -435,12 +435,12 @@ void setSVB_RelativeSetpoint (uint16_t sp)
     }
 }
 
-uint16_t getSVB_RelativeSetpoint (void)
+int getSVB_RelativeSetpoint (void)
 {
     return map (getSVB_WantedPosition(), leftBoundary, rightBoundary, 0, 100);
 }
 
-uint16_t getSVB_RelativePosition (void)
+int getSVB_RelativePosition (void)
 {
     return map (getSVB_EncoderPosition(), leftBoundary, rightBoundary, 0, 100);    
 }
