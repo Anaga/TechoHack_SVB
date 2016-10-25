@@ -464,7 +464,7 @@ void setup(void){
     MasterSetpointTicker.attach(MASTER_SETPOINT_INTERVAL, triggerBroadcastSetpoint);
 
     // Set up motor control
-    SVBsetup();
+    //SVBsetup();
 
     // Make first measurment
     getAndPrintLight();
