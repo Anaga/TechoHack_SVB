@@ -373,13 +373,13 @@ int main (int argc, char **argv)
     struct timeval tv;
     int sw = 0;
 
-
+/*
     res = cmd_write_setpoint (1, -1, 10000);
     if (res == -1) {
         perror("sendto");
         exit(1);
     }
-
+*/
 
     while (1) {
 

@@ -19,8 +19,8 @@ void doEncoder(void);
     void averageSettleDown(void);
     int getSVB_EncoderPosition(void);
     void setSVB_RelativeSetpoint (uint16_t sp);
-    uint16_t getSVB_RelativeSetpoint (void);
-    uint16_t getSVB_RelativePosition (void);
+    int getSVB_RelativeSetpoint (void);
+    int getSVB_RelativePosition (void);
     int getSVB_Mode (void);
   #endif
 
