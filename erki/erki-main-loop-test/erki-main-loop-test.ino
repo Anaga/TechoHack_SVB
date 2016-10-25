@@ -24,7 +24,7 @@ Ticker MasterSetpointRateLimitTicker;
 #define MASTER_SETPOINT_INTERVAL 1.0
 #define MASTER_SETPOINT_RATELIMIT 0.2
 
-#define IM_MASTER 0
+#define IM_MASTER 1
 
 WiFiUDP udp;
 IPAddress broadcastIp(192, 168, 0, 255);
@@ -598,6 +598,6 @@ void loop(void){
         doLightSense = false;
     }
 
-  SVBdrive(); 
+ // SVBdrive();
   delay(25);
 }
