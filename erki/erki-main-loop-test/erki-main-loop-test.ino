@@ -113,11 +113,12 @@ void setupLightSensors(void){
 uint16_t getAndPrintLight(void){
     priv_lux1 = LightSensor1.GetLightIntensity();// Get Lux value from sensor1
     priv_lux2 = LightSensor2.GetLightIntensity();// And from sensor2
-    Serial.print("Light1: ");
+    Serial.print("Light1, Light2, Average, ");
     Serial.print(priv_lux1);
-    Serial.print(" lux, Light2: ");
+    Serial.print(",");
     Serial.print(priv_lux2);
-    Serial.println(" lux");
+    Serial.print(",");
+    Serial.println((priv_lux1+priv_lux2)/2);
     return (priv_lux1+priv_lux2)/2;
 }
 
@@ -460,11 +461,11 @@ void setup(void){
 
     LightSenseTicker.attach(LIGHT_SENSE_INTERVAL, triggerLightSense);
 
-    MasterLightRequestTicker.attach(MASTER_REQEST_INTERVAL, triggerMasterLightRequest);
-    MasterSetpointTicker.attach(MASTER_SETPOINT_INTERVAL, triggerBroadcastSetpoint);
+    //MasterLightRequestTicker.attach(MASTER_REQEST_INTERVAL, triggerMasterLightRequest);
+    //MasterSetpointTicker.attach(MASTER_SETPOINT_INTERVAL, triggerBroadcastSetpoint);
 
     // Set up motor control
-    //SVBsetup();
+    SVBsetup(1);
 
     // Make first measurment
     getAndPrintLight();
@@ -473,36 +474,29 @@ void setup(void){
 }
 
 void light_logic(void){
-    /*
-Light1: 162 lux, Light2: 71 lux
-Light1: 162 lux, Light2: 72 lux
-Light1: 162 lux, Light2: 72 lux
-Light1: 162 lux, Light2: 72 lux
-Light1: 162 lux, Light2: 70 lux
-Light1: 162 lux, Light2: 67 lux
-Light1: 162 lux, Light2: 61 lux
-Light1: 162 lux, Light2: 65 lux
-Light1: 169 lux, Light2: 850 lux
-Light1: 169 lux, Light2: 2045 lux
-Light1: 169 lux, Light2: 1954 lux
-Light1: 160 lux, Light2: 53 lux
-Light1: 161 lux, Light2: 68 lux
-Light1: 161 lux, Light2: 72 lux
-Light1: 161 lux, Light2: 72 lux
-    */
-
+    static boolean is_open = false;
+    static boolean is_close = false;
     uint16_t in_sen_val = priv_lux1;
     uint16_t out_sen_val = priv_lux2;
     int16_t delta = out_sen_val - in_sen_val;
 
+
     if (delta > LIGHT_GEST) {
-        send_command_open_all();
+        if (!is_open) {
+            send_command_open_all();
+            is_open = true;
+            is_close = false;
+        }
     }
     if (delta < -LIGHT_GEST) {
-        send_command_close_all();
+        if (!is_close) {
+            send_command_close_all();
+            is_open = false;
+            is_close = true;
+        }
     }
-
 }
+
 void handle_master_logic(void){
     static int oldPosition = -1;
     int currentPosition;
@@ -539,12 +533,12 @@ void handle_master_logic(void){
 }
 
 void send_command_open_all(void){
-    Serial.println("send_command_open_all ...");
+    Serial.println("send_command_open_all, , ,0,0,0");
     setSVB_RelativeSetpoint(50);
 }
 
 void send_command_close_all(void){
-    Serial.println("send_command_close_all ...");
+    Serial.println("send_command_close_all, , ,0,0,0");
     setSVB_RelativeSetpoint(0);
 }
 
@@ -598,6 +592,6 @@ void loop(void){
         doLightSense = false;
     }
 
- // SVBdrive();
+  SVBdrive(1);
   delay(25);
 }

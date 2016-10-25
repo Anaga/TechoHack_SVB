@@ -273,7 +273,7 @@ void averageSettleDown(){
 
 void SVBdrive(int motorNumber){
     calcAverage(analogRead(motorCurrent));
-
+#if 0
     Serial.print("Mode: ");
     Serial.print(mode);
     Serial.print("Motor: ");
@@ -287,7 +287,7 @@ void SVBdrive(int motorNumber){
     Serial.print(average);
     Serial.print(" Pos: ");
     Serial.println(encoderPos);
-
+#endif
     if(motorNumber == small){
         switch (mode){
         case mError:
@@ -313,6 +313,7 @@ void SVBdrive(int motorNumber){
             break;
         }
         delay(1);
+
     } else if (motorNumber == big){
         switch (mode){
         case mError:
@@ -339,7 +340,6 @@ void SVBdrive(int motorNumber){
         }
         delay(1);
     }
-
 }
 
 void SVBsetup(int motorNumber){
