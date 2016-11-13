@@ -461,7 +461,7 @@ void setup(void){
 
     LightSenseTicker.attach(LIGHT_SENSE_INTERVAL, triggerLightSense);
 
-    //MasterLightRequestTicker.attach(MASTER_REQEST_INTERVAL, triggerMasterLightRequest);
+    MasterLightRequestTicker.attach(MASTER_REQEST_INTERVAL, triggerMasterLightRequest);
     //MasterSetpointTicker.attach(MASTER_SETPOINT_INTERVAL, triggerBroadcastSetpoint);
 
     // Set up motor control
